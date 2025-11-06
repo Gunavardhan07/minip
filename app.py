@@ -9,72 +9,93 @@ from io import BytesIO
 from PIL import Image
 import hashlib
 import base64
+import re
+from urllib.parse import urlparse
 
-# ---------- Page config and styling ----------
-st.set_page_config(page_title="CrowdPitch Pro — Final", page_icon="🚀", layout="wide")
-
-# Custom CSS for polished look
-st.markdown(
-    """
-    <style>
-    .css-1d391kg {padding-top:1rem;}  /* adjust top padding */
-    .stApp { background: linear-gradient(180deg,#0f1724,#111827); color: #e5e7eb; }
-    .block-container { padding: 1.75rem 2rem; }
-    .card { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); 
-            border-radius: 12px; padding: 1rem; box-shadow: 0 6px 24px rgba(2,6,23,0.6); }
-    .big-btn > button { background-color: #06b6d4; color: #042f33; border-radius: 10px; padding: 0.45rem 0.75rem; }
-    .small-muted { color: #9ca3af; font-size: 0.9rem; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
+# --------------- Page config & small theme -----------------
+st.set_page_config(page_title="CrowdPitch Pro — KYC Edition", page_icon="🚀", layout="wide")
 sns.set_style("darkgrid")
 plt.rcParams["figure.dpi"] = 100
 
-# ---------- Utilities ----------
+# ----------------- Small CSS to look polished ----------------
+st.markdown("""
+<style>
+.stApp { background: linear-gradient(180deg,#071A2A,#071622); color: #e6eef6; }
+.block-container { padding: 1.25rem 2rem; }
+.card { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); 
+       border-radius: 12px; padding: 0.9rem; box-shadow: 0 6px 18px rgba(1,8,16,0.6); }
+.sidebar .sidebar-content { background: linear-gradient(180deg,#071622,#03121A); }
+.stButton>button { background-color: #06b6d4; color: #012; border-radius: 8px; padding: 0.45rem 0.75rem; }
+.metric-label { color:#9fb4c9; }
+.small-muted { color:#9fb4c9; font-size:0.9rem; }
+</style>
+""", unsafe_allow_html=True)
+
+# ----------------- Utilities -----------------
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-def save_image_to_bytes(img_file) -> bytes:
-    # returns bytes suitable for st.image via BytesIO
+def image_bytes(img_file) -> bytes:
     img = Image.open(img_file).convert("RGB")
     buf = BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
 
 def df_to_csv_bytes(df: pd.DataFrame) -> bytes:
-    return df.to_csv(index=False).encode('utf-8')
+    return df.to_csv(index=False).encode("utf-8")
 
-def init_state():
-    # users: dict username -> {password_hash, role, wallet(if investor)}
-    if "users" not in st.session_state:
-        st.session_state.users = {}
-    if "current_user" not in st.session_state:
-        st.session_state.current_user = None
-    if "pitches" not in st.session_state:
-        st.session_state.pitches = []  # list of pitch dicts
-    if "investments" not in st.session_state:
-        st.session_state.investments = []  # list of {investor, pitch_name, amount}
-init_state()
+def extract_domain(url: str) -> str:
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc or parsed.path
+        domain = domain.lower().replace("www.", "")
+        domain = domain.split(':')[0]
+        return domain
+    except:
+        return ""
 
-# ---------- Auth - Signup/Login ----------
+def email_domain(email: str) -> str:
+    parts = email.split("@")
+    return parts[1].lower() if len(parts) == 2 else ""
+
+def name_in_filename(name: str, fname: str) -> bool:
+    if not name or not fname:
+        return False
+    n = re.sub(r'[^a-z0-9]', '', name.lower())
+    f = re.sub(r'[^a-z0-9]', '', fname.lower())
+    return n in f
+
+# ----------------- Initialize session state -----------------
+if "users" not in st.session_state:
+    st.session_state.users = {}
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
+if "pitches" not in st.session_state:
+    st.session_state.pitches = []
+if "investments" not in st.session_state:
+    st.session_state.investments = []
+
+# create demo accounts if missing
+if "investor_demo" not in st.session_state.users:
+    st.session_state.users["investor_demo"] = {"password": hash_password("pass123"), "role": "Investor", "wallet": 10000.0}
+if "startup_demo" not in st.session_state.users:
+    st.session_state.users["startup_demo"] = {"password": hash_password("pass123"), "role": "Startup"}
+
+# ----------------- Auth functions -----------------
 def signup(username, password, role):
     if username in st.session_state.users:
-        st.warning("Username already exists. Try another.")
+        st.warning("Username exists. Choose another.")
         return False
-    ph = hash_password(password)
-    user = {"password": ph, "role": role}
+    st.session_state.users[username] = {"password": hash_password(password), "role": role}
     if role == "Investor":
-        user["wallet"] = 10000.0  # default wallet in INR
-    st.session_state.users[username] = user
-    st.success("Signup successful! You can now login.")
+        st.session_state.users[username]["wallet"] = 10000.0
+    st.success("Signup successful! Please login.")
     return True
 
 def login(username, password):
     user = st.session_state.users.get(username)
     if not user:
-        st.error("No such user. Please signup.")
+        st.error("No such user. Signup first.")
         return False
     if user["password"] != hash_password(password):
         st.error("Incorrect password.")
@@ -85,14 +106,14 @@ def login(username, password):
 
 def logout():
     st.session_state.current_user = None
-    st.success("Logged out.")
+    st.info("Logged out.")
 
-# ---------- Layout: Header ----------
-col1, col2 = st.columns([3,1])
-with col1:
-    st.title("🚀 CrowdPitch Pro — Final Submission")
-    st.markdown("**A polished demo:** upload pitch, ML forecasting (ARIMA), investor view, wallet & invest.")
-with col2:
+# ----------------- Header -----------------
+c1, c2 = st.columns([3,1])
+with c1:
+    st.title("🚀 CrowdPitch Pro — KYC & Verification Demo")
+    st.markdown("**Onboard startups with business documents, run ARIMA forecasts, let investors browse & invest.**")
+with c2:
     if st.session_state.current_user:
         u = st.session_state.current_user
         st.markdown(f"**{u['username']}**")
@@ -104,12 +125,12 @@ with col2:
 
 st.markdown("---")
 
-# ---------- Sidebar: Auth & Quick Info ----------
+# ----------------- Sidebar: Auth -----------------
 with st.sidebar:
     st.markdown("## Account")
     if not st.session_state.current_user:
-        auth_tab = st.radio("Action", ["Login", "Signup"], index=0)
-        if auth_tab == "Signup":
+        action = st.radio("Action", ["Login", "Signup"], index=0)
+        if action == "Signup":
             su_user = st.text_input("Username (signup)", key="su_user")
             su_pass = st.text_input("Password", type="password", key="su_pass")
             su_role = st.selectbox("Role", ["Startup", "Investor"], key="su_role")
@@ -117,7 +138,7 @@ with st.sidebar:
                 if su_user and su_pass:
                     signup(su_user, su_pass, su_role)
                 else:
-                    st.warning("Enter username & password")
+                    st.warning("Enter username and password.")
         else:
             li_user = st.text_input("Username (login)", key="li_user")
             li_pass = st.text_input("Password", type="password", key="li_pass")
@@ -125,200 +146,257 @@ with st.sidebar:
                 if li_user and li_pass:
                     login(li_user, li_pass)
                 else:
-                    st.warning("Enter username & password")
+                    st.warning("Enter username and password.")
         st.markdown("---")
-        st.markdown("### Demo accounts")
-        st.markdown("- investor_demo / pass123 (investor)")
-        st.markdown("- startup_demo / pass123 (startup)")
-        # create demo users if not exist
-        if "investor_demo" not in st.session_state.users:
-            signup("investor_demo", "pass123", "Investor")
-        if "startup_demo" not in st.session_state.users:
-            signup("startup_demo", "pass123", "Startup")
+        st.markdown("**Demo accounts**")
+        st.markdown("- `investor_demo` / `pass123` (Investor)")
+        st.markdown("- `startup_demo` / `pass123` (Startup)")
     else:
         u = st.session_state.current_user
         if u["role"] == "Investor":
             wallet = st.session_state.users[u["username"]].get("wallet", 0.0)
             st.markdown("### Wallet")
-            st.markdown(f"**₹ {wallet:,.2f}**")
-            st.markdown("---")
-            st.markdown("Quick actions")
+            st.markdown(f"**₹{wallet:,.2f}**")
             if st.button("Add ₹1000"):
                 st.session_state.users[u["username"]]["wallet"] += 1000.0
-                st.success("Added ₹1000 to wallet")
+                st.success("₹1000 added")
 
     st.markdown("---")
-    st.markdown("About")
-    st.markdown("Built with Streamlit • statsmodels (ARIMA) • seaborn • Session-state demo")
+    st.markdown("Built with Streamlit • statsmodels • seaborn • Session-state demo")
 
-# ---------- MAIN: Role Views ----------
+# ----------------- Require login to proceed -----------------
 if not st.session_state.current_user:
-    st.info("Please signup or login from the sidebar. Use demo accounts for quick testing.")
+    st.info("Please login or signup using the sidebar. Use demo accounts for quick testing.")
     st.stop()
 
 user = st.session_state.current_user
 role = user["role"]
 username = user["username"]
 
-# ---------- STARTUP: Create Pitch ----------
+# ----------------- STARTUP: Onboarding & Pitch -----------------
 if role == "Startup":
-    st.header("🏢 Startup Dashboard — Create a Pitch")
-    st.markdown("Fill pitch details, upload a CSV of historical metric (date,value), upload image/logo, add pitch video (YouTube).")
+    st.header("🏢 Startup Onboarding & Pitch Creation")
+    st.markdown("Fill business details, upload KYC/legal docs, upload CSV for forecasting, and submit your pitch.")
 
-    with st.form("pitch_form", clear_on_submit=False):
-        pname = st.text_input("Pitch name")
-        pshort = st.text_area("Short description (one line)")
-        pdesc = st.text_area("Full description")
-        uploaded_csv = st.file_uploader("Upload CSV (date,value)", type=["csv"])
-        uploaded_img = st.file_uploader("Upload Image (logo/product) PNG/JPG", type=["png","jpg","jpeg"])
-        video_link = st.text_input("YouTube video link (embed) — paste full link")
-        submit = st.form_submit_button("Create / Save Pitch")
+    with st.form("onboard_form", clear_on_submit=False):
+        st.subheader("Company Identity")
+        company_name = st.text_input("Company Legal Name", placeholder="e.g., Acme Pvt Ltd")
+        reg_number = st.text_input("Business Registration / Incorporation Number")
+        country = st.text_input("Country of Registration", value="India")
+        founders = st.text_area("Founders' Full Names & Roles (comma separated)", placeholder="Alice (CEO), Bob (CTO)")
+        official_email = st.text_input("Official Email (company domain preferred)")
+        website = st.text_input("Company Website (https://...)")
+        linkedin = st.text_input("LinkedIn URL (optional)")
+        x_link = st.text_input("X / Twitter URL (optional)")
+        insta = st.text_input("Instagram URL (optional)")
 
-    if submit:
-        if not pname or not uploaded_csv:
-            st.error("Please provide at least pitch name and CSV.")
+        st.subheader("Documents & Media")
+        logo_file = st.file_uploader("Logo & Brand Asset (PNG/JPG)", type=["png","jpg","jpeg"])
+        kyc_file = st.file_uploader("KYC Document (ID) (PNG/PDF)", type=["png","jpg","jpeg","pdf"])
+        address_file = st.file_uploader("Proof of Address (utility bill/lease/bank statement) (PNG/PDF)", type=["png","jpg","jpeg","pdf"])
+        bank_file = st.file_uploader("Bank Account Verification Document (statement/void cheque) (PNG/PDF)", type=["png","jpg","jpeg","pdf"])
+        st.subheader("Pitch & Data")
+        pitch_name = st.text_input("Pitch / Product Name")
+        short_desc = st.text_input("Short Description")
+        long_desc = st.text_area("Long Description")
+        csv_file = st.file_uploader("Performance CSV (date,value) for forecasting", type=["csv"])
+        video_link = st.text_input("Video pitch link (any URL)")
+
+        submitted = st.form_submit_button("Submit Pitch & Onboard")
+
+    if submitted:
+        # Basic validation
+        missing = []
+        if not company_name: missing.append("Company Legal Name")
+        if not pitch_name: missing.append("Pitch Name")
+        if not csv_file: missing.append("CSV data")
+        if not kyc_file: missing.append("KYC Document")
+        if not address_file: missing.append("Proof of Address")
+        if not bank_file: missing.append("Bank Document")
+        if missing:
+            st.error("Missing required fields: " + ", ".join(missing))
         else:
             # process CSV
             try:
-                df = pd.read_csv(uploaded_csv)
+                df = pd.read_csv(csv_file)
                 df.columns = ["date", "value"]
                 df["date"] = pd.to_datetime(df["date"])
                 df = df.sort_values("date")
             except Exception as e:
-                st.error(f"CSV error: {e}")
+                st.error(f"CSV parsing error: {e}")
                 st.stop()
 
-            img_bytes = None
-            if uploaded_img:
+            # images -> bytes
+            logo_bytes = None
+            if logo_file:
                 try:
-                    img_bytes = save_image_to_bytes(uploaded_img)
-                except Exception as e:
-                    st.warning("Image upload problem — continuing without image.")
-                    img_bytes = None
+                    logo_bytes = image_bytes(logo_file)
+                except:
+                    logo_bytes = None
 
-            # create pitch record
+            # verification heuristics
+            website_domain = extract_domain(website) if website else ""
+            email_dom = email_domain(official_email) if official_email else ""
+            email_ok = False
+            if official_email and website_domain:
+                email_ok = (website_domain in email_dom) or (email_dom in website_domain)
+            else:
+                # accept if email looks like a company domain different from gmail/yahoo
+                if official_email and not any(d in official_email for d in ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com"]):
+                    email_ok = True
+
+            # bank doc match - simple filename heuristic
+            bank_fname = getattr(bank_file, "name", "") if bank_file else ""
+            bank_match = name_in_filename(company_name, bank_fname)
+
+            # compile pitch record with verification statuses
+            verification = {
+                "email_domain": "Verified" if email_ok else "Pending/Check",
+                "bank_doc": "Verified" if bank_match else "Pending/Manual Review",
+                "kyc_uploaded": True,
+                "address_uploaded": True
+            }
+
             pitch = {
-                "name": pname,
-                "short": pshort,
-                "desc": pdesc,
+                "company_name": company_name,
+                "reg_number": reg_number,
+                "country": country,
+                "founders": founders,
+                "official_email": official_email,
+                "website": website,
+                "socials": {"linkedin": linkedin, "x": x_link, "instagram": insta},
+                "logo": logo_bytes,
+                "kyc_file_name": getattr(kyc_file, "name", "") if kyc_file else "",
+                "address_file_name": getattr(address_file, "name", "") if address_file else "",
+                "bank_file_name": bank_fname,
+                "pitch_name": pitch_name,
+                "short": short_desc,
+                "desc": long_desc,
                 "owner": username,
                 "data": df,
-                "image": img_bytes,
                 "video": video_link,
                 "funded": 0.0,
-                "investors": []
+                "investors": [],
+                "verification": verification
             }
             st.session_state.pitches.append(pitch)
-            st.success(f"Pitch '{pname}' created!")
+            st.success(f"Pitch '{pitch_name}' created and onboarding initiated.")
+            st.balloons()
 
     st.markdown("---")
-    st.subheader("Your pitches")
+    st.subheader("Your Created Pitches")
     mine = [p for p in st.session_state.pitches if p["owner"] == username]
     if not mine:
-        st.info("You haven't created any pitches yet.")
+        st.info("You have no created pitches yet.")
     else:
         for p in mine:
-            st.markdown(f"### {p['name']}")
-            cols = st.columns([1, 3])
+            st.markdown(f"### {p['pitch_name']}")
+            cols = st.columns([1,3])
             with cols[0]:
-                if p["image"]:
-                    st.image(p["image"], use_column_width=True)
+                if p["logo"]:
+                    st.image(p["logo"], width=180)
                 else:
-                    st.image("https://via.placeholder.com/220x140.png?text=No+Image", use_column_width=True)
+                    st.image("https://via.placeholder.com/220x140.png?text=No+Logo", width=180)
                 st.markdown(f"**Funded:** ₹{p['funded']:,.2f}")
+                st.markdown("**Verification**")
+                st.write(p["verification"])
             with cols[1]:
                 st.markdown(p["short"])
-                st.write(p["desc"])
-                if st.button(f"View / Predict — {p['name']}", key=f"view_{p['name']}"):
-                    st.session_state._view_pitch = p["name"]
+                if st.button(f"View & Forecast — {p['pitch_name']}", key=f"view_{p['pitch_name']}"):
+                    st.session_state._view_pitch = p["pitch_name"]
 
-# ---------- INVESTOR: Browse & Invest ----------
+# ----------------- INVESTOR: Browse & Invest -----------------
 elif role == "Investor":
-    st.header("💼 Investor Dashboard — Discover & Invest")
-    st.markdown("Browse startup pitches, view predictions, watch video, and invest (simulated wallet).")
+    st.header("💼 Investor Dashboard — Explore & Invest")
+    st.markdown("Browse verified or pending startups, view forecasts, watch video, and invest using simulated wallet.")
+
     if not st.session_state.pitches:
-        st.info("No pitches available yet. Wait for startups to create pitches.")
+        st.info("No pitches yet. Wait for startups to onboard.")
         st.stop()
 
-    # Search / Filters
-    row1, row2 = st.columns([3,1])
-    with row1:
-        q = st.text_input("Search startups (name or description)")
-    with row2:
-        sort_by = st.selectbox("Sort by", ["Newest", "Most Funded", "Alphabetical"])
+    # Filters & search
+    q, sort_by = st.columns([3,1])
+    query = q.text_input("Search by name or description")
+    sort_by = sort_by.selectbox("Sort by", ["Newest", "Most Funded", "Verified First"])
     pitches = st.session_state.pitches.copy()
-    if q:
-        pitches = [p for p in pitches if q.lower() in p["name"].lower() or q.lower() in p["short"].lower() or q.lower() in p["desc"].lower()]
-    if sort_by == "Most Funded":
-        pitches = sorted(pitches, key=lambda x: x['funded'], reverse=True)
-    elif sort_by == "Alphabetical":
-        pitches = sorted(pitches, key=lambda x: x['name'])
-    else:
-        pitches = list(reversed(pitches))  # newest first
 
-    # Display pitches as cards
+    if query:
+        pitches = [p for p in pitches if query.lower() in p["pitch_name"].lower() or query.lower() in p["company_name"].lower() or query.lower() in p["short"].lower() or query.lower() in p["desc"].lower()]
+
+    if sort_by == "Most Funded":
+        pitches = sorted(pitches, key=lambda x: x["funded"], reverse=True)
+    elif sort_by == "Verified First":
+        # rudimentary: those with email & bank doc verified first
+        pitches = sorted(pitches, key=lambda x: (x["verification"].get("email_domain")!="Verified", x["verification"].get("bank_doc")!="Verified"))
+    else:
+        pitches = list(reversed(pitches))
+
     for p in pitches:
         st.markdown("", unsafe_allow_html=True)
         card_cols = st.columns([1.2, 3])
         with card_cols[0]:
-            if p["image"]:
-                st.image(p["image"], width=180)
+            if p["logo"]:
+                st.image(p["logo"], width=180)
             else:
-                st.image("https://via.placeholder.com/220x140.png?text=No+Image", width=180)
+                st.image("https://via.placeholder.com/220x140.png?text=No+Logo", width=180)
             st.markdown(f"**Funded:** ₹{p['funded']:,.2f}")
-            st.markdown(f"**Investors:** {len(p['investors'])}")
+            st.markdown(f"**Verification**")
+            st.write(p["verification"])
         with card_cols[1]:
-            st.markdown(f"### {p['name']}")
+            st.markdown(f"### {p['pitch_name']} ({p['company_name']})")
             st.markdown(f"_{p['short']}_")
-            st.write(p['desc'][:300] + ("..." if len(p['desc'])>300 else ""))
-
-            # Small inline metrics
+            st.write(p["desc"][:350] + ("..." if len(p["desc"])>350 else ""))
             df = p["data"]
             latest = df['value'].iloc[-1]
-            mean = df['value'].mean()
-            growth = (df['value'].iloc[-1] / df['value'].iloc[0] - 1) * 100
+            meanv = df['value'].mean()
+            growth = (df['value'].iloc[-1] / df['value'].iloc[0] - 1)*100
             cols = st.columns(4)
             cols[0].metric("Latest", f"{latest:.2f}")
-            cols[1].metric("Avg", f"{mean:.2f}")
+            cols[1].metric("Average", f"{meanv:.2f}")
             cols[2].metric("Growth (%)", f"{growth:.1f}%")
             cols[3].metric("Funded", f"₹{p['funded']:,.0f}")
 
-            # Buttons: View detail and Invest
             b1, b2 = st.columns([1,1])
-            if b1.button("View Details", key=f"view_{p['name']}"):
-                st.session_state._view_pitch = p['name']
-            if b2.button("Invest", key=f"invest_{p['name']}"):
-                st.session_state._invest_in = p['name']
-
+            if b1.button("View Details", key=f"view_{p['pitch_name']}"):
+                st.session_state._view_pitch = p["pitch_name"]
+            if b2.button("Invest", key=f"invest_{p['pitch_name']}"):
+                st.session_state._invest_in = p["pitch_name"]
         st.markdown("---")
 
-    # Handle view pitch detail
+    # View details
     if "_view_pitch" in st.session_state:
         target = st.session_state._view_pitch
-        selected = next((x for x in st.session_state.pitches if x["name"] == target), None)
+        selected = next((x for x in st.session_state.pitches if x["pitch_name"] == target), None)
         if selected:
-            st.markdown("## 🔎 Pitch — " + selected["name"])
-            details_cols = st.columns([1,2])
-            with details_cols[0]:
-                if selected["image"]:
-                    st.image(selected["image"], use_column_width=True)
+            st.markdown(f"## 🔎 {selected['pitch_name']} — {selected['company_name']}")
+            left, right = st.columns([1,2])
+            with left:
+                if selected["logo"]:
+                    st.image(selected["logo"], use_column_width=True)
                 else:
-                    st.image("https://via.placeholder.com/320x180.png?text=No+Image", use_column_width=True)
-                st.markdown(f"**Owner:** {selected['owner']}")
-                st.markdown(f"**Funded:** ₹{selected['funded']:,.2f}")
-                st.markdown(f"**Investors:** {len(selected['investors'])}")
-                # Video
-                if selected['video']:
+                    st.image("https://via.placeholder.com/320x180.png?text=No+Logo", use_column_width=True)
+                st.markdown("**Owner:** " + selected["owner"])
+                st.markdown("**Registration:** " + (selected["reg_number"] or "—"))
+                st.markdown("**Country:** " + (selected["country"] or "—"))
+                st.markdown("**Verification summary**")
+                st.write(selected["verification"])
+                if selected["kyc_file_name"]:
+                    st.markdown("KYC doc: " + selected["kyc_file_name"])
+                if selected["address_file_name"]:
+                    st.markdown("Address proof: " + selected["address_file_name"])
+                if selected["bank_file_name"]:
+                    st.markdown("Bank doc: " + selected["bank_file_name"])
+                if selected["video"]:
                     st.markdown("🎥 Video pitch")
-                    st.video(selected['video'])
-            with details_cols[1]:
+                    st.video(selected["video"])
+            with right:
                 st.markdown(selected["desc"])
                 st.markdown("### Historical data & Forecast")
                 df = selected["data"]
 
-                # Plot with seaborn + ARIMA forecast (statsmodels)
                 fig, ax = plt.subplots(figsize=(9,4))
                 sns.lineplot(x="date", y="value", data=df, marker="o", ax=ax, label="Historical")
+                forecast_available = False
                 try:
                     model = sm.tsa.ARIMA(df["value"], order=(1,1,1))
                     result = model.fit()
@@ -327,53 +405,49 @@ elif role == "Investor":
                     conf = result.get_forecast(steps=n).conf_int()
                     future_dates = pd.date_range(df["date"].iloc[-1], periods=n+1, freq="M")[1:]
                     ax.plot(future_dates, forecast, marker="X", linestyle="--", label="Forecast")
-                    ax.fill_between(future_dates, conf.iloc[:,0], conf.iloc[:,1], alpha=0.25)
+                    ax.fill_between(future_dates, conf.iloc[:,0], conf.iloc[:,1], alpha=0.2)
+                    forecast_available = True
                 except Exception as e:
-                    st.warning("Forecast failed: " + str(e))
+                    st.warning("Forecast error: " + str(e))
                 ax.set_title("Metric (historical + forecast)")
                 st.pyplot(fig)
 
-                # Download forecast CSV if available
-                if 'forecast' in locals():
+                if forecast_available:
                     fdf = pd.DataFrame({
                         "date": future_dates,
                         "forecast": forecast,
                         "lower": conf.iloc[:,0],
                         "upper": conf.iloc[:,1]
                     })
-                    csv_bytes = df_to_csv_bytes(fdf)
-                    st.download_button("Download forecast (CSV)", data=csv_bytes, file_name=f"{selected['name']}_forecast.csv", mime="text/csv")
+                    st.download_button("Download forecast CSV", df_to_csv_bytes(fdf), file_name=f"{selected['pitch_name']}_forecast.csv")
 
-            # close view
             if st.button("Close view"):
                 del st.session_state._view_pitch
 
-    # Handle invest action
+    # Invest flow
     if "_invest_in" in st.session_state:
         target = st.session_state._invest_in
-        selected = next((x for x in st.session_state.pitches if x["name"] == target), None)
+        selected = next((x for x in st.session_state.pitches if x["pitch_name"] == target), None)
         if selected:
-            st.markdown(f"## 💸 Invest in {selected['name']}")
+            st.markdown(f"## 💸 Invest in {selected['pitch_name']}")
             st.write(selected["short"])
-            amount = st.number_input("Amount to invest (INR)", min_value=100.0, value=500.0, step=100.0)
-            buyer_wallet = st.session_state.users[username]["wallet"]
-            st.markdown(f"**Your wallet:** ₹{buyer_wallet:,.2f}")
+            amount = st.number_input("Amount (INR)", min_value=100.0, value=500.0, step=100.0)
+            wallet = st.session_state.users[username]["wallet"]
+            st.markdown(f"**Your wallet:** ₹{wallet:,.2f}")
             if st.button("Confirm Invest"):
                 if amount <= 0:
                     st.error("Enter positive amount")
-                elif amount > buyer_wallet:
-                    st.error("Insufficient wallet balance")
+                elif amount > wallet:
+                    st.error("Insufficient balance")
                 else:
-                    # process
                     st.session_state.users[username]["wallet"] -= amount
                     selected["funded"] += amount
                     selected["investors"].append({"investor": username, "amount": amount})
-                    st.session_state.investments.append({"investor": username, "pitch": selected["name"], "amount": amount})
-                    st.success(f"Successfully invested ₹{amount:,.0f} in {selected['name']}")
-                    # cleanup
+                    st.session_state.investments.append({"investor": username, "pitch": selected["pitch_name"], "amount": amount})
+                    st.success(f"Invested ₹{amount:,.0f} in {selected['pitch_name']}")
                     del st.session_state._invest_in
 
-# ---------- Footer & quick stats ----------
+# ----------------- Footer stats -----------------
 st.markdown("---")
 c1, c2, c3 = st.columns(3)
 with c1:
