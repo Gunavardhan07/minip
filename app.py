@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-import pmdarima as pm
+import statsmodels.api as sm
 import matplotlib.pyplot as plt
-from io import StringIO
 
 # --- Page Config ---
 st.set_page_config(page_title="CrowdPitch Pro", page_icon="🚀", layout="wide")
@@ -71,40 +70,47 @@ with tab1:
         st.subheader("📊 Historical Performance")
         st.line_chart(df.set_index("date")["value"])
 
-        # --- ARIMA Forecasting ---
-        st.info("Running ARIMA model for forecasting future performance...")
-        model = pm.auto_arima(df["value"], seasonal=False, suppress_warnings=True)
-        n_periods = 6
-        forecast, conf_int = model.predict(n_periods=n_periods, return_conf_int=True)
-        future_dates = pd.date_range(df["date"].iloc[-1], periods=n_periods + 1, freq="M")[1:]
+        # --- ARIMA Forecasting using statsmodels ---
+        st.info("🔮 Running ARIMA model for forecasting future performance...")
 
-        forecast_df = pd.DataFrame({
-            "date": future_dates,
-            "forecast": forecast,
-            "lower": conf_int[:, 0],
-            "upper": conf_int[:, 1]
-        })
+        try:
+            model = sm.tsa.ARIMA(df["value"], order=(1, 1, 1))
+            result = model.fit()
+            n_periods = 6
+            forecast = result.forecast(steps=n_periods)
+            conf_int = result.get_forecast(steps=n_periods).conf_int()
 
-        st.subheader("🔮 Predicted Future Trend (Next 6 Months)")
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.plot(df["date"], df["value"], label="Historical", marker="o", color="#00ADB5")
-        ax.plot(forecast_df["date"], forecast_df["forecast"], label="Forecast", marker="x", color="#FFD369")
-        ax.fill_between(forecast_df["date"], forecast_df["lower"], forecast_df["upper"], color="#FFD369", alpha=0.3)
-        ax.legend()
-        ax.set_facecolor("#222831")
-        st.pyplot(fig)
+            future_dates = pd.date_range(df["date"].iloc[-1], periods=n_periods + 1, freq="M")[1:]
+            forecast_df = pd.DataFrame({
+                "date": future_dates,
+                "forecast": forecast,
+                "lower": conf_int.iloc[:, 0],
+                "upper": conf_int.iloc[:, 1]
+            })
 
-        # --- Save Pitch to Session ---
-        if st.button("💾 Save My Pitch"):
-            pitch = {
-                "name": startup_name,
-                "desc": description,
-                "video": video_url,
-                "data": df,
-                "forecast": forecast_df
-            }
-            st.session_state.pitches.append(pitch)
-            st.success(f"✅ Pitch '{startup_name}' saved successfully!")
+            st.subheader("🔮 Predicted Future Trend (Next 6 Months)")
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.plot(df["date"], df["value"], label="Historical", marker="o", color="#00ADB5")
+            ax.plot(forecast_df["date"], forecast_df["forecast"], label="Forecast", marker="x", color="#FFD369")
+            ax.fill_between(forecast_df["date"], forecast_df["lower"], forecast_df["upper"], color="#FFD369", alpha=0.3)
+            ax.legend()
+            ax.set_facecolor("#222831")
+            st.pyplot(fig)
+
+            # --- Save Pitch to Session ---
+            if st.button("💾 Save My Pitch"):
+                pitch = {
+                    "name": startup_name,
+                    "desc": description,
+                    "video": video_url,
+                    "data": df,
+                    "forecast": forecast_df
+                }
+                st.session_state.pitches.append(pitch)
+                st.success(f"✅ Pitch '{startup_name}' saved successfully!")
+
+        except Exception as e:
+            st.error(f"Error in ARIMA model: {e}")
 
 # ============================================================
 # 💼 INVESTOR ZONE
