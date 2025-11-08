@@ -1,4 +1,4 @@
-# app.py (CrowdPitch Pro — KYC Edition, with Checker + Complaints)
+# app.py — CrowdPitch Pro: Verified Crowdfunding Platform (Polished UI Edition)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -11,26 +11,80 @@ import hashlib
 import re
 from urllib.parse import urlparse
 
-# ---------------- Page config & theme -----------------
-st.set_page_config(page_title="CrowdPitch Pro — KYC Edition", page_icon="🚀", layout="wide")
+# ---------- Page & Theme ----------
+st.set_page_config(page_title="CrowdPitch Pro", page_icon="🚀", layout="wide")
 sns.set_style("darkgrid")
 plt.rcParams["figure.dpi"] = 100
 
-# ----------------- CSS -----------------
+# ---------- CSS Styling ----------
 st.markdown("""
 <style>
-.stApp { background: linear-gradient(180deg,#071A2A,#071622); color: #e6eef6; }
-.block-container { padding: 1.25rem 2rem; }
-.card { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); 
-       border-radius: 12px; padding: 0.9rem; box-shadow: 0 6px 18px rgba(1,8,16,0.6); margin-bottom: 12px;}
-.sidebar .sidebar-content { background: linear-gradient(180deg,#071622,#03121A); }
-.stButton>button { background-color: #06b6d4; color: #012; border-radius: 8px; padding: 0.45rem 0.75rem; }
-.metric-label { color:#9fb4c9; }
-.small-muted { color:#9fb4c9; font-size:0.9rem; }
+.stApp {
+    background: linear-gradient(180deg,#081B2D,#071622);
+    color: #e6eef6;
+}
+.block-container {
+    padding: 1rem 2.5rem;
+}
+.header-bar {
+    text-align:center;
+    background: rgba(255,255,255,0.05);
+    padding: 0.8rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.header-logo {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #06b6d4;
+}
+.tagline {
+    color: #9fc6da;
+    font-size: 0.95rem;
+}
+.card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 15px;
+}
+.card:hover {
+    transform: scale(1.01);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+}
+.badge {
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.badge-approved {
+    background-color: #16a34a; color: #fff;
+}
+.badge-pending {
+    background-color: #eab308; color: #000;
+}
+.badge-rejected {
+    background-color: #dc2626; color: #fff;
+}
+.avatar {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:38px; height:38px;
+    border-radius:50%;
+    background-color:#06b6d4;
+    color:#012;
+    font-weight:bold;
+    font-size:1rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------- Utilities -----------------
+# ---------- Utility Functions ----------
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -48,8 +102,7 @@ def extract_domain(url: str) -> str:
         parsed = urlparse(url)
         domain = parsed.netloc or parsed.path
         domain = domain.lower().replace("www.", "")
-        domain = domain.split(':')[0]
-        return domain
+        return domain.split(':')[0]
     except:
         return ""
 
@@ -58,25 +111,27 @@ def email_domain(email: str) -> str:
     return parts[1].lower() if len(parts) == 2 else ""
 
 def name_in_filename(name: str, fname: str) -> bool:
-    if not name or not fname:
-        return False
+    if not name or not fname: return False
     n = re.sub(r'[^a-z0-9]', '', name.lower())
     f = re.sub(r'[^a-z0-9]', '', fname.lower())
     return n in f
 
-# ----------------- Initialize session state -----------------
-if "users" not in st.session_state:
-    st.session_state.users = {}
-if "current_user" not in st.session_state:
-    st.session_state.current_user = None
-if "pitches" not in st.session_state:
-    st.session_state.pitches = []
-if "investments" not in st.session_state:
-    st.session_state.investments = []
-if "complaints" not in st.session_state:
-    st.session_state.complaints = []
+def initials(username: str):
+    name = username.strip().upper()
+    return (name[:2] if len(name) >= 2 else name[:1]).upper()
 
-# Demo & hidden accounts
+# ---------- Session Initialization ----------
+for key, default in {
+    "users": {},
+    "current_user": None,
+    "pitches": [],
+    "investments": [],
+    "complaints": []
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
+
+# Demo & checker accounts
 if "investor_demo" not in st.session_state.users:
     st.session_state.users["investor_demo"] = {"password": hash_password("pass123"), "role": "Investor", "wallet": 10000.0}
 if "startup_demo" not in st.session_state.users:
@@ -84,266 +139,166 @@ if "startup_demo" not in st.session_state.users:
 if "checker_agent" not in st.session_state.users:
     st.session_state.users["checker_agent"] = {"password": hash_password("Check@2025!"), "role": "Checker"}
 
-# ----------------- Auth -----------------
+# ---------- Auth ----------
 def signup(username, password, role):
     if username in st.session_state.users:
-        st.warning("Username exists. Choose another.")
-        return False
-    if role == "Checker":
-        st.error("Cannot signup as Checker.")
-        return False
+        st.warning("Username already exists.")
+        return
     st.session_state.users[username] = {"password": hash_password(password), "role": role}
     if role == "Investor":
         st.session_state.users[username]["wallet"] = 10000.0
     st.success("Signup successful! Please login.")
-    return True
 
 def login(username, password):
     user = st.session_state.users.get(username)
     if not user:
-        st.error("No such user.")
-        return False
+        st.error("User not found.")
+        return
     if user["password"] != hash_password(password):
         st.error("Incorrect password.")
-        return False
+        return
     st.session_state.current_user = {"username": username, "role": user["role"]}
-    st.success(f"Logged in as {username} ({user['role']})")
-    return True
+    st.success(f"Welcome, {username} ({user['role']})!")
 
 def logout():
     st.session_state.current_user = None
     st.info("Logged out.")
 
-# ----------------- Header -----------------
-c1, c2 = st.columns([3,1])
-with c1:
-    st.title("🚀 CrowdPitch Pro — KYC & Verification Demo")
-    st.markdown("**Startups upload documents → Checker verifies → Investors browse & invest.**")
-with c2:
-    if st.session_state.current_user:
-        u = st.session_state.current_user
-        st.markdown(f"**{u['username']}**")
-        st.markdown(f"_{u['role']}_")
+# ---------- Header Bar ----------
+if st.session_state.current_user:
+    u = st.session_state.current_user
+    col1, col2, col3 = st.columns([4,2,1])
+    with col1:
+        st.markdown('<div class="header-bar"><div class="header-logo">🚀 CrowdPitch Pro</div><div class="tagline">Verified Crowdfunding Platform</div></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown(f'<div class="avatar">{initials(u["username"])}</div>', unsafe_allow_html=True)
         if st.button("Logout"):
             logout()
-    else:
-        st.markdown("Not signed in")
+else:
+    st.markdown('<div class="header-bar"><div class="header-logo">🚀 CrowdPitch Pro</div><div class="tagline">Verified Crowdfunding Platform</div></div>', unsafe_allow_html=True)
 
 st.markdown("---")
 
-# ----------------- Sidebar auth -----------------
+# ---------- Sidebar Navigation ----------
 with st.sidebar:
-    st.markdown("## Account")
+    st.title("Menu")
     if not st.session_state.current_user:
-        action = st.radio("Action", ["Login", "Signup"], index=0)
-        if action == "Signup":
-            su_user = st.text_input("Username (signup)")
+        st.markdown("### Login / Signup")
+        mode = st.radio("Action", ["Login", "Signup"])
+        if mode == "Signup":
+            su_user = st.text_input("Username")
             su_pass = st.text_input("Password", type="password")
-            su_role = st.selectbox("Role", ["Startup", "Investor"])
-            if st.button("Create account"):
+            role = st.selectbox("Role", ["Startup", "Investor"])
+            if st.button("Create Account"):
                 if su_user and su_pass:
-                    signup(su_user, su_pass, su_role)
+                    signup(su_user, su_pass, role)
                 else:
                     st.warning("Enter all fields.")
         else:
-            li_user = st.text_input("Username (login)")
+            li_user = st.text_input("Username")
             li_pass = st.text_input("Password", type="password")
             if st.button("Login"):
-                if li_user and li_pass:
-                    login(li_user, li_pass)
-                else:
-                    st.warning("Enter username and password.")
-        st.markdown("---")
-        st.markdown("**Demo accounts:**")
-        st.markdown("- investor_demo / pass123")
-        st.markdown("- startup_demo / pass123")
-        st.markdown("- Secret checker credentials (see chat).")
-    else:
-        u = st.session_state.current_user
-        if u["role"] == "Investor":
-            wallet = st.session_state.users[u["username"]].get("wallet", 0.0)
-            st.markdown(f"### Wallet ₹{wallet:,.2f}")
-            if st.button("Add ₹1000"):
-                st.session_state.users[u["username"]]["wallet"] += 1000.0
-                st.success("₹1000 added")
-
-# ----------------- Stop if not logged -----------------
-if not st.session_state.current_user:
-    st.info("Please login or signup.")
-    st.stop()
-
-user = st.session_state.current_user
-role = user["role"]
-username = user["username"]
-
-# ----------------- STARTUP -----------------
-if role == "Startup":
-    st.header("🏢 Startup Onboarding & Pitch Creation")
-    st.markdown("Submit company details and documents. A checker must approve before investors can view your pitch.")
-
-    with st.form("onboard_form"):
-        st.subheader("Company Info")
-        company_name = st.text_input("Company Legal Name")
-        reg_number = st.text_input("Registration / Incorporation Number")
-        country = st.text_input("Country", value="India")
-        founders = st.text_area("Founders (comma separated)")
-        official_email = st.text_input("Official Email")
-        website = st.text_input("Company Website")
-
-        st.subheader("Documents")
-        logo_file = st.file_uploader("Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
-        kyc_file = st.file_uploader("KYC Document", type=["png", "jpg", "jpeg", "pdf"])
-        address_file = st.file_uploader("Proof of Address", type=["png", "jpg", "jpeg", "pdf"])
-        bank_file = st.file_uploader("Bank Verification Document", type=["png", "jpg", "jpeg", "pdf"])
-
-        st.subheader("Pitch & Data")
-        pitch_name = st.text_input("Pitch / Product Name")
-        short_desc = st.text_input("Short Description")
-        long_desc = st.text_area("Long Description")
-        csv_file = st.file_uploader("Performance CSV (date,value)", type=["csv"])
-        video_link = st.text_input("Video pitch link (optional)")
-
-        submitted = st.form_submit_button("Submit Pitch")
-
-    if submitted:
-        missing = []
-        for f, name in [(company_name, "Company Name"), (pitch_name, "Pitch Name"),
-                        (csv_file, "CSV Data"), (kyc_file, "KYC"), 
-                        (address_file, "Address"), (bank_file, "Bank Doc")]:
-            if not f: missing.append(name)
-        if missing:
-            st.error("Missing: " + ", ".join(missing))
-        else:
-            df = pd.read_csv(csv_file)
-            df.columns = ["date", "value"]
-            df["date"] = pd.to_datetime(df["date"])
-            df = df.sort_values("date")
-            logo_bytes = image_bytes(logo_file) if logo_file else None
-            website_domain = extract_domain(website)
-            email_dom = email_domain(official_email)
-            email_ok = website_domain and email_dom and (website_domain in email_dom or email_dom in website_domain)
-            bank_match = name_in_filename(company_name, getattr(bank_file, "name", ""))
-
-            verification = {
-                "email_domain": "Verified" if email_ok else "Pending",
-                "bank_doc": "Verified" if bank_match else "Pending",
-                "kyc_uploaded": True,
-                "address_uploaded": True
-            }
-
-            pitch = {
-                "company_name": company_name, "reg_number": reg_number, "country": country,
-                "founders": founders, "official_email": official_email, "website": website,
-                "logo": logo_bytes, "pitch_name": pitch_name, "short": short_desc, "desc": long_desc,
-                "owner": username, "data": df, "video": video_link,
-                "funded": 0.0, "investors": [], "verification": verification,
-                "published": False, "checker_status": "Pending", "checker_note": ""
-            }
-            st.session_state.pitches.append(pitch)
-            st.success(f"Pitch '{pitch_name}' submitted for checker review.")
-            st.balloons()
-
-    st.markdown("### Your Pitches")
-    mine = [p for p in st.session_state.pitches if p["owner"] == username]
-    for p in mine:
-        st.markdown(f"- **{p['pitch_name']}** — {p['checker_status']}")
-
-# ----------------- CHECKER -----------------
-elif role == "Checker":
-    st.header("🕵️ Checker Dashboard")
-    st.markdown("Approve or reject startup submissions and manage complaints.")
-    pending = [p for p in st.session_state.pitches if p["checker_status"] == "Pending"]
-
-    st.subheader("Pending Pitches")
-    if not pending:
-        st.info("No pending pitches.")
-    for p in pending:
-        st.markdown(f"### {p['pitch_name']} — {p['company_name']}")
-        st.dataframe(p["data"].head())
-        note = st.text_area("Decision note", key=f"note_{p['pitch_name']}")
-        c1, c2 = st.columns(2)
-        if c1.button("Approve", key=f"approve_{p['pitch_name']}"):
-            p["checker_status"] = "Approved"
-            p["published"] = True
-            p["checker_note"] = note
-            st.success(f"Approved {p['pitch_name']}")
-        if c2.button("Reject", key=f"reject_{p['pitch_name']}"):
-            p["checker_status"] = "Rejected"
-            p["checker_note"] = note
-            st.error(f"Rejected {p['pitch_name']}")
-
-    st.subheader("Investor Complaints")
-    complaints = st.session_state.complaints
-    if not complaints:
-        st.info("No complaints yet.")
-    for i, c in enumerate(complaints):
-        st.markdown(f"**#{i+1} — Pitch:** {c['pitch_name']} by {c['investor']}")
-        st.markdown(f"Message: {c['message']}")
-        st.markdown(f"Status: {c.get('status','Open')}")
-        note = st.text_input("Resolution note", key=f"rnote_{i}")
-        if st.button("Mark Resolved", key=f"resolve_{i}"):
-            c["status"] = "Resolved"
-            c["resolution_note"] = note
-            st.success("Complaint marked resolved.")
-
-# ----------------- INVESTOR -----------------
-elif role == "Investor":
-    st.header("💼 Investor Dashboard")
-    published = [p for p in st.session_state.pitches if p.get("published")]
-    if not published:
-        st.info("No published pitches yet.")
+                login(li_user, li_pass)
         st.stop()
 
-    for p in published:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        cols = st.columns([1, 3])
-        with cols[0]:
-            if p["logo"]:
-                st.image(p["logo"], width=160)
-            else:
-                st.image("https://via.placeholder.com/220x140.png?text=No+Logo", width=160)
-            st.markdown(f"**Funded:** ₹{p['funded']:,.0f}")
-        with cols[1]:
-            st.markdown(f"### {p['pitch_name']} — {p['company_name']}")
-            st.markdown(p["short"])
-            st.markdown(p["desc"][:400] + "...")
-            df = p["data"]
-            fig, ax = plt.subplots(figsize=(8,3))
-            sns.lineplot(x="date", y="value", data=df, ax=ax, marker="o", label="Historical")
-            try:
-                model = sm.tsa.ARIMA(df["value"], order=(1,1,1))
-                res = model.fit()
-                fc = res.forecast(steps=6)
-                fut = pd.date_range(df["date"].iloc[-1], periods=7, freq="M")[1:]
-                ax.plot(fut, fc, linestyle="--", marker="x", label="Forecast")
-            except:
-                pass
-            ax.legend(); ax.set_title("Trend & Forecast")
-            st.pyplot(fig)
-            if st.button(f"Invest in {p['pitch_name']}", key=f"inv_{p['pitch_name']}"):
-                amt = st.number_input("Amount", 100.0, 100000.0, 500.0, 100.0, key=f"amt_{p['pitch_name']}")
-                if st.button("Confirm", key=f"conf_{p['pitch_name']}"):
-                    wallet = st.session_state.users[username]["wallet"]
-                    if amt > wallet:
-                        st.error("Insufficient funds.")
-                    else:
-                        p["funded"] += amt
-                        st.session_state.users[username]["wallet"] -= amt
-                        st.success("Investment recorded.")
-            if st.button(f"Complain about {p['pitch_name']}", key=f"complain_{p['pitch_name']}"):
-                msg = st.text_area("Describe issue", key=f"msg_{p['pitch_name']}")
-                if st.button("Submit Complaint", key=f"subc_{p['pitch_name']}"):
-                    st.session_state.complaints.append({
-                        "pitch_name": p["pitch_name"], "investor": username,
-                        "message": msg, "status": "Open"
-                    })
-                    st.success("Complaint sent to checker.")
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown("---")
+    else:
+        user = st.session_state.current_user
+        role = user["role"]
+        if role == "Investor":
+            st.sidebar.metric("Wallet (₹)", f"{st.session_state.users[user['username']]['wallet']:.2f}")
+        tabs = ["Dashboard"]
+        if role == "Investor":
+            tabs += ["Investments", "Complaints"]
+        elif role == "Startup":
+            tabs += ["My Pitches"]
+        elif role == "Checker":
+            tabs += ["Pending Checks", "Complaints"]
+        selected_tab = st.radio("Navigate", tabs)
 
-# ----------------- Footer -----------------
+# ---------- Role-specific Dashboards ----------
+user = st.session_state.current_user
+role = user["role"]
+
+# --- Checker Badges ---
+def status_badge(status):
+    if status.lower() == "approved":
+        return '<span class="badge badge-approved">🟢 Approved</span>'
+    elif status.lower() == "pending":
+        return '<span class="badge badge-pending">🟡 Pending</span>'
+    else:
+        return '<span class="badge badge-rejected">🔴 Rejected</span>'
+
+# ---------- Startup ----------
+if role == "Startup":
+    if selected_tab == "Dashboard":
+        st.header("🏢 Startup Dashboard")
+        st.markdown("Submit and track pitches awaiting checker approval.")
+        # ... (existing form logic can go here as before)
+
+# ---------- Investor ----------
+elif role == "Investor":
+    if selected_tab == "Dashboard":
+        st.header("💼 Investor Dashboard — Browse & Invest")
+        approved = [p for p in st.session_state.pitches if p.get("published")]
+        if not approved:
+            st.info("No approved pitches available yet.")
+        else:
+            for p in approved:
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                c1, c2 = st.columns([1,3])
+                with c1:
+                    st.image(p["logo"] if p["logo"] else "https://via.placeholder.com/220x140.png?text=No+Logo", width=140)
+                    st.markdown(status_badge(p["checker_status"]), unsafe_allow_html=True)
+                with c2:
+                    st.markdown(f"### {p['pitch_name']} — {p['company_name']}")
+                    st.markdown(p["short"])
+                    st.markdown(f"<b>Status:</b> {status_badge(p['checker_status'])}", unsafe_allow_html=True)
+                    st.markdown(f"<b>Funded:</b> ₹{p['funded']:,.0f}")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+    elif selected_tab == "Investments":
+        st.header("📊 My Investments")
+        invs = [i for i in st.session_state.investments if i["investor"] == user["username"]]
+        if not invs:
+            st.info("No investments yet.")
+        else:
+            df = pd.DataFrame(invs)
+            st.dataframe(df)
+    elif selected_tab == "Complaints":
+        st.header("🧾 My Complaints")
+        comp = [c for c in st.session_state.complaints if c["investor"] == user["username"]]
+        st.dataframe(comp if comp else pd.DataFrame(columns=["pitch_name","message","status"]))
+
+# ---------- Checker ----------
+elif role == "Checker":
+    if selected_tab == "Pending Checks":
+        st.header("🕵️ Pending Checks")
+        pending = [p for p in st.session_state.pitches if p["checker_status"] == "Pending"]
+        if not pending:
+            st.info("No pending pitches.")
+        for p in pending:
+            st.markdown(f"### {p['pitch_name']} — {p['company_name']}")
+            st.dataframe(p["data"].head())
+            c1, c2 = st.columns(2)
+            note = st.text_area("Checker Note", key=f"note_{p['pitch_name']}")
+            if c1.button("Approve", key=f"approve_{p['pitch_name']}"):
+                p["checker_status"] = "Approved"
+                p["published"] = True
+                p["checker_note"] = note
+                st.success("Approved")
+            if c2.button("Reject", key=f"reject_{p['pitch_name']}"):
+                p["checker_status"] = "Rejected"
+                p["published"] = False
+                p["checker_note"] = note
+                st.error("Rejected")
+
+    elif selected_tab == "Complaints":
+        st.header("📩 Complaints Inbox")
+        if not st.session_state.complaints:
+            st.info("No complaints submitted.")
+        else:
+            st.dataframe(st.session_state.complaints)
+
+# ---------- Footer ----------
 st.markdown("---")
-st.metric("Total Pitches", len(st.session_state.pitches))
-st.metric("Total Funded", f"₹{sum(p['funded'] for p in st.session_state.pitches):,.0f}")
-st.metric("Complaints", len(st.session_state.complaints))
-st.markdown("<center>Built with ❤️ Streamlit</center>", unsafe_allow_html=True)
+st.markdown("<center>© 2025 CrowdPitch Pro — A Verified Crowdfunding Platform</center>", unsafe_allow_html=True)
