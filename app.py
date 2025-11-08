@@ -1,9 +1,3 @@
-# app.py
-"""
-CrowdPitch Pro — KYC Edition
-Landing page (signin / signup) + role-based dashboard
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -17,32 +11,25 @@ import re
 from urllib.parse import urlparse
 from datetime import datetime
 
-# ---------- Page config ----------
+# ---------- PAGE CONFIG ----------
 st.set_page_config(page_title="CrowdPitch Pro — KYC Edition", page_icon="🚀", layout="wide")
 sns.set_style("darkgrid")
 plt.rcParams["figure.dpi"] = 100
 
-# ---------- Small CSS ----------
-st.markdown(
-    """
-    <style>
-    .app-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-    .brand { display:flex; align-items:center; gap:12px; }
-    .brand h1 { margin:0; color:#06b6d4; }
-    .tag { color:#9fb4c9; margin-top:4px; font-size:0.95rem; }
-    .hero { background: linear-gradient(180deg,#071A2A,#071622); padding:28px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.5); }
-    .auth-card { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); padding:18px; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.45); }
-    .small-muted { color:#9fb4c9; font-size:0.92rem; }
-    .badge { padding:3px 8px; border-radius:8px; font-weight:600; font-size:0.85rem; }
-    .badge-approved { background-color:#16a34a; color:white; }
-    .badge-pending { background-color:#f59e0b; color:#012; }
-    .badge-rejected { background-color:#ef4444; color:white; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+# ---------- CSS ----------
+st.markdown("""
+<style>
+body { background: linear-gradient(180deg,#071A2A,#071622); color: #e6eef6; }
+.auth-card { background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); padding: 2rem; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); text-align: center; }
+.tagline { color:#9fb4c9; font-size:1rem; margin-bottom:1rem; }
+.badge { padding:4px 8px; border-radius:8px; font-weight:600; font-size:0.85rem; }
+.badge-approved { background-color:#16a34a; color:white; }
+.badge-pending { background-color:#facc15; color:#012; }
+.badge-rejected { background-color:#ef4444; color:white; }
+</style>
+""", unsafe_allow_html=True)
 
-# ---------- Utilities ----------
+# ---------- UTILITIES ----------
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -60,8 +47,7 @@ def extract_domain(url: str) -> str:
         parsed = urlparse(url)
         domain = parsed.netloc or parsed.path
         domain = domain.lower().replace("www.", "")
-        domain = domain.split(':')[0]
-        return domain
+        return domain.split(':')[0]
     except:
         return ""
 
@@ -84,7 +70,7 @@ def status_badge_html(status: str) -> str:
         return '<span class="badge badge-rejected">🔴 Rejected</span>'
     return '<span class="badge badge-pending">🟡 Pending</span>'
 
-# ---------- Session-state initialization ----------
+# ---------- SESSION INIT ----------
 if "users" not in st.session_state:
     st.session_state.users = {}
 if "current_user" not in st.session_state:
@@ -96,27 +82,20 @@ if "investments" not in st.session_state:
 if "complaints" not in st.session_state:
     st.session_state.complaints = []
 if "page" not in st.session_state:
-    st.session_state.page = "home"  # 'home' or 'app'
+    st.session_state.page = "home"
 
-# demo accounts
+# Demo accounts
 if "investor_demo" not in st.session_state.users:
     st.session_state.users["investor_demo"] = {"password": hash_password("pass123"), "role": "Investor", "wallet": 10000.0}
 if "startup_demo" not in st.session_state.users:
     st.session_state.users["startup_demo"] = {"password": hash_password("pass123"), "role": "Startup"}
-# hidden checker
 if "checker_agent" not in st.session_state.users:
     st.session_state.users["checker_agent"] = {"password": hash_password("Check@2025!"), "role": "Checker"}
 
-# ---------- Auth functions ----------
+# ---------- AUTH ----------
 def signup(username: str, password: str, role: str):
-    if not username or not password:
-        st.warning("Provide username and password.")
-        return False
     if username in st.session_state.users:
-        st.warning("Username exists. Choose another.")
-        return False
-    if role == "Checker":
-        st.error("Cannot signup as Checker.")
+        st.warning("Username exists.")
         return False
     st.session_state.users[username] = {"password": hash_password(password), "role": role}
     if role == "Investor":
@@ -134,8 +113,8 @@ def login(username: str, password: str):
         return False
     st.session_state.current_user = {"username": username, "role": u["role"]}
     st.session_state.page = "app"
-    st.success(f"Logged in as {username} ({u['role']})")
-    st.rerun()  # fixed for new Streamlit
+    st.success(f"Welcome {username} ({u['role']})!")
+    st.rerun()
     return True
 
 def logout():
@@ -143,83 +122,154 @@ def logout():
     st.session_state.page = "home"
     st.rerun()
 
-# ---------- Landing / Cover Page ----------
+# ---------- LANDING PAGE ----------
 def landing_page():
-    # header
-    col1, col2 = st.columns([3,1])
-    with col1:
-        st.markdown('<div class="brand"><h1>🚀 CrowdPitch Pro</h1></div>', unsafe_allow_html=True)
-        st.markdown('<div class="tag">Verified Crowdfunding Platform — KYC & Manual Verification Demo</div>', unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown('<div class="hero">', unsafe_allow_html=True)
-
-    # centered auth card
+    st.markdown("<h1 style='text-align:center;color:#06b6d4;'>🚀 CrowdPitch Pro</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='tagline' style='text-align:center;'>Verified Crowdfunding Platform — KYC Edition</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
         st.markdown('<div class="auth-card">', unsafe_allow_html=True)
-        tab = st.radio("Choose", ["Login", "Signup"], horizontal=True)
-        if tab == "Login":
-            st.subheader("Sign in")
-            li_user = st.text_input("Username", key="li_user")
-            li_pass = st.text_input("Password", type="password", key="li_pass")
-            if st.button("Login", key="do_login"):
+        mode = st.radio("Select", ["Login", "Signup"], horizontal=True)
+        if mode == "Login":
+            li_user = st.text_input("Username")
+            li_pass = st.text_input("Password", type="password")
+            if st.button("Login"):
                 if li_user and li_pass:
                     login(li_user.strip(), li_pass)
                 else:
-                    st.warning("Enter username and password.")
-            st.markdown('<div class="small-muted">Demo: <b>investor_demo</b>/<i>pass123</i>  or <b>startup_demo</b>/<i>pass123</i></div>', unsafe_allow_html=True)
+                    st.warning("Enter credentials.")
+            st.markdown("<small>Demo: investor_demo/pass123 or startup_demo/pass123</small>", unsafe_allow_html=True)
         else:
-            st.subheader("Create account")
-            su_user = st.text_input("Choose username", key="su_user")
-            su_pass = st.text_input("Choose password", type="password", key="su_pass")
-            su_role = st.selectbox("Role", ["Startup", "Investor"], key="su_role")
-            if st.button("Create account", key="do_signup"):
+            su_user = st.text_input("Choose username")
+            su_pass = st.text_input("Choose password", type="password")
+            su_role = st.selectbox("Role", ["Startup", "Investor"])
+            if st.button("Create Account"):
                 if su_user and su_pass:
-                    success = signup(su_user.strip(), su_pass, su_role)
-                    if success:
-                        st.info("You can now login from the login tab.")
+                    signup(su_user.strip(), su_pass, su_role)
                 else:
-                    st.warning("Provide username and password.")
+                    st.warning("Fill all fields.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)  # hero end
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Help & FAQs")
+    st.markdown("""
+    **Q:** What is CrowdPitch Pro?  
+    **A:** A demo platform for verified startup onboarding and investor simulation.
 
-    st.markdown("---")
-    # Help & FAQs
-    help_col1, help_col2 = st.columns([2,1])
-    with help_col1:
-        st.subheader("How it works")
-        st.markdown("""
-        1. Startups sign up and submit company info + KYC documents + performance CSV.  
-        2. A hidden Checker reviews uploaded docs and approves or rejects the pitch.  
-        3. Approved pitches show up for Investors who can view forecasts and invest (simulated wallet).  
-        4. Investors can raise complaints which go to the Checker.
-        """)
-    with help_col2:
-        st.subheader("FAQs")
-        st.markdown("""
-        **Q:** Is this real funding?  
-        **A:** No — this is a demo / prototype for onboarding & verification flows.
-        
-        **Q:** Who is the Checker?  
-        **A:** A manual reviewer (hidden account). Use the provided secret credentials for testing.
-        
-        **Q:** Can I persist data across restarts?  
-        **A:** Not yet. We can add SQLite persistence if you want.
-        """)
+    **Q:** How does verification work?  
+    **A:** Startups upload documents → Checker manually approves → Investors see verified ones.
 
-    st.markdown("<small class='small-muted'>Hidden checker credentials (keep secret): <b>checker_agent</b> / <i>Check@2025!</i></small>", unsafe_allow_html=True)
+    **Q:** Hidden Checker Login:**  
+    **A:** `checker_agent` / `Check@2025!`
+    """)
 
-# ---------- Main App ----------
+# ---------- DASHBOARDS ----------
+def startup_dashboard(user):
+    st.header("🏢 Startup Onboarding")
+    st.info("Submit your company details and upload required documents. Checker must approve before investors see your pitch.")
+    with st.form("onboard_form"):
+        company = st.text_input("Company Name")
+        pitch = st.text_input("Pitch Name")
+        csv_file = st.file_uploader("Performance CSV (date,value)", type="csv")
+        kyc = st.file_uploader("KYC Document")
+        addr = st.file_uploader("Address Proof")
+        bank = st.file_uploader("Bank Proof")
+        desc = st.text_area("Pitch Description")
+        submitted = st.form_submit_button("Submit Pitch")
+    if submitted:
+        if not (company and pitch and csv_file and kyc and addr and bank):
+            st.error("All fields required.")
+        else:
+            df = pd.read_csv(csv_file)
+            df.columns = ["date","value"]
+            df["date"] = pd.to_datetime(df["date"])
+            pitch_data = {
+                "company_name": company,
+                "pitch_name": pitch,
+                "data": df,
+                "desc": desc,
+                "owner": user["username"],
+                "funded": 0,
+                "published": False,
+                "checker_status": "Pending",
+                "verification": {"KYC": "Uploaded", "Address": "Uploaded", "Bank": "Uploaded"}
+            }
+            st.session_state.pitches.append(pitch_data)
+            st.success("Pitch submitted for checker review.")
+
+    st.subheader("My Pitches")
+    mine = [p for p in st.session_state.pitches if p["owner"] == user["username"]]
+    if not mine:
+        st.info("No pitches yet.")
+    for p in mine:
+        st.markdown(f"### {p['pitch_name']} ({status_badge_html(p['checker_status'])})", unsafe_allow_html=True)
+        st.write(p["desc"])
+
+def checker_dashboard():
+    st.header("🕵️ Checker Dashboard")
+    pending = [p for p in st.session_state.pitches if p["checker_status"] == "Pending"]
+    if not pending:
+        st.info("No pending pitches.")
+    for p in pending:
+        st.markdown(f"### {p['pitch_name']} — {p['company_name']}")
+        st.dataframe(p["data"].head())
+        c1, c2 = st.columns(2)
+        if c1.button("Approve", key=f"a_{p['pitch_name']}"):
+            p["checker_status"] = "Approved"
+            p["published"] = True
+            st.success("Approved.")
+        if c2.button("Reject", key=f"r_{p['pitch_name']}"):
+            p["checker_status"] = "Rejected"
+            st.error("Rejected.")
+
+    st.subheader("Complaints")
+    for c in st.session_state.complaints:
+        st.write(f"Pitch: {c['pitch_name']} — {c['message']} ({c['status']})")
+
+def investor_dashboard(user):
+    st.header("💼 Investor Dashboard")
+    published = [p for p in st.session_state.pitches if p["published"]]
+    if not published:
+        st.info("No verified pitches yet.")
+    for p in published:
+        st.markdown(f"### {p['pitch_name']} — {p['company_name']}")
+        st.write(p["desc"])
+        df = p["data"]
+        fig, ax = plt.subplots()
+        sns.lineplot(x="date", y="value", data=df, ax=ax)
+        st.pyplot(fig)
+        if st.button(f"Invest in {p['pitch_name']}", key=f"i_{p['pitch_name']}"):
+            amt = st.number_input("Amount", 100.0, 100000.0, 500.0, 100.0)
+            wallet = st.session_state.users[user["username"]]["wallet"]
+            if amt > wallet:
+                st.error("Insufficient balance.")
+            else:
+                p["funded"] += amt
+                st.session_state.users[user["username"]]["wallet"] -= amt
+                st.session_state.investments.append({"investor": user["username"], "pitch": p["pitch_name"], "amount": amt})
+                st.success("Investment successful.")
+        if st.button(f"Complain on {p['pitch_name']}", key=f"c_{p['pitch_name']}"):
+            msg = st.text_area("Complaint Message", key=f"m_{p['pitch_name']}")
+            if st.button("Submit", key=f"s_{p['pitch_name']}"):
+                st.session_state.complaints.append({"pitch_name": p["pitch_name"], "investor": user["username"], "message": msg, "status": "Open"})
+                st.success("Complaint submitted.")
+
+# ---------- MAIN APP ----------
 def main_app():
-    st.write("✅ App loaded successfully (role-specific content starts here).")
-    st.info("All existing role dashboards (Startup, Investor, Checker) remain identical to previous version.")
-    st.markdown("This is just a placeholder confirmation that your routing and rerun system is working.")
-    if st.button("Logout"):
+    user = st.session_state.current_user
+    st.sidebar.success(f"Logged in as {user['username']} ({user['role']})")
+    if st.sidebar.button("Logout"):
         logout()
 
-# ---------- Router ----------
+    if user["role"] == "Startup":
+        startup_dashboard(user)
+    elif user["role"] == "Checker":
+        checker_dashboard()
+    elif user["role"] == "Investor":
+        investor_dashboard(user)
+
+# ---------- ROUTER ----------
 if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
