@@ -425,146 +425,162 @@ def checker_page(user):
     st.markdown('</div>', unsafe_allow_html=True)
 
 def investor_page(user):
-    st.header("Investor Marketplace — Shop-like Experience")
-    left, right = st.columns([3, 1])
+    st.markdown("<h2 style='color:#06b6d4;'>💼 Investor Marketplace & Dashboard</h2>", unsafe_allow_html=True)
+    st.markdown('<div class="card" style="padding:20px;">', unsafe_allow_html=True)
 
-    with left:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+    # --- Search & Filters Section ---
+    st.markdown("### 🔍 Find Investment Opportunities")
+    st.markdown(
+        "<p style='color:#9fb4c9;font-size:0.95rem;'>Filter verified startups by approval status, target range, or search by name.</p>",
+        unsafe_allow_html=True,
+    )
 
-        q = st.text_input("Search startups", key="inv_search")
-        status_filter = st.selectbox("Status", ["Any", "Approved", "Pending", "Rejected"], key="inv_status")
+    col1, col2, col3, col4 = st.columns([2, 1.5, 1.5, 1])
+    with col1:
+        q = st.text_input("Search by startup name or website", placeholder="e.g. SeedConnect Tech", key="inv_search")
+    with col2:
+        status_filter = st.selectbox("Approval Status", ["Any", "Approved", "Pending", "Rejected"], key="inv_status")
+    with col3:
         sort_by = st.selectbox("Sort by", ["Relevance", "Target: Low→High", "Target: High→Low"], key="inv_sort")
+    with col4:
         page_size = st.selectbox("Results per page", [6, 12, 24], index=0, key="inv_pagesize")
 
-        results = st.session_state.pitches
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        # --- Search & filters ---
-        if q:
-            results = [
-                p for p in results
-                if q.lower() in (p.get("name") or "").lower()
-                or q.lower() in (p.get("website") or "").lower()
-            ]
+    results = st.session_state.pitches
 
-        if status_filter != "Any":
-            results = [p for p in results if p.get("status", "").lower() == status_filter.lower()]
+    # --- Filter logic ---
+    if q:
+        results = [
+            p for p in results
+            if q.lower() in (p.get("name") or "").lower()
+            or q.lower() in (p.get("website") or "").lower()
+        ]
+    if status_filter != "Any":
+        results = [p for p in results if p.get("status", "").lower() == status_filter.lower()]
+    if sort_by == "Target: Low→High":
+        results = sorted(results, key=lambda x: x.get("target", 0))
+    elif sort_by == "Target: High→Low":
+        results = sorted(results, key=lambda x: x.get("target", 0), reverse=True)
 
-        if sort_by == "Target: Low→High":
-            results = sorted(results, key=lambda x: x.get("target", 0))
-        elif sort_by == "Target: High→Low":
-            results = sorted(results, key=lambda x: x.get("target", 0), reverse=True)
+    # --- Results Display ---
+    if not results:
+        st.info("No startups match your search filters.")
+    else:
+        st.markdown('<div class="grid">', unsafe_allow_html=True)
+        for p in results[:page_size]:
+            st.markdown(f'<div class="product-card"><h4>{html.escape(p["name"])}</h4>', unsafe_allow_html=True)
+            st.markdown(f'<div class="small-muted">Submitted by {html.escape(p.get("submitted_by", "-"))}</div>', unsafe_allow_html=True)
+            st.write("Target funding:", f"₹{p.get('target', 0):,.2f}")
+            st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
+            st.markdown(status_badge_html(p.get("status")))
 
-        if not results:
-            st.info("No startups match your search.")
-        else:
-            st.markdown('<div class="grid">', unsafe_allow_html=True)
+            if p.get("logo"):
+                try:
+                    embed_image_bytes(p["logo"]["content"], width=120)
+                except Exception:
+                    st.write("Logo not available.")
 
-            for p in results[:page_size]:
-                st.markdown(f'<div class="product-card"><h4>{html.escape(p["name"])}</h4>', unsafe_allow_html=True)
-                st.markdown(f'<div class="small-muted">Submitted by {html.escape(p.get("submitted_by", "-"))}</div>', unsafe_allow_html=True)
-                st.write("Target funding:", f"₹{p.get('target', 0):,.2f}")
-                st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
-                st.markdown(status_badge_html(p.get("status")))
+            col_a, col_b = st.columns([1, 1])
+            with col_a:
+                amount = st.number_input(
+                    f"Amount to invest-{p['id']}",
+                    min_value=float(p.get("min_invest", 100.0)),
+                    value=float(p.get("min_invest", 1000.0)),
+                    step=float(p.get("min_invest", 100.0)),
+                    key=f"amt_{p['id']}"
+                )
+            with col_b:
+                if st.button(f"Add to Cart-{p['id']}"):
+                    if p.get("status", "").lower() != "approved":
+                        st.warning("Only approved startups can be invested in.")
+                    else:
+                        st.session_state.cart.append({
+                            "pitch_id": p["id"],
+                            "name": p["name"],
+                            "amount": float(amount),
+                            "added_at": datetime.utcnow().isoformat()
+                        })
+                        st.success(f"Added ₹{float(amount):,.2f} to cart for {p['name']}")
 
-                if p.get("logo"):
-                    try:
-                        embed_image_bytes(p["logo"]["content"], width=140)
-                    except Exception:
-                        st.write("Logo preview not available.")
+            # --- Details + ROI Forecast ---
+            if st.button(f"View Details-{p['id']}"):
+                with st.expander(f"Details — {p['name']}"):
+                    st.write("Website:", p.get("website") or "-")
+                    st.write("Contact:", p.get("email"))
+                    st.write("Target:", f"₹{p.get('target', 0):,.2f}")
+                    st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
 
-                # --- Investment controls ---
-                col_a, col_b = st.columns([1, 1])
-                with col_a:
-                    amount = st.number_input(
-                        f"Amount to invest-{p['id']}",
-                        min_value=float(p.get("min_invest", 100.0)),
-                        value=float(p.get("min_invest", 1000.0)),
-                        step=float(p.get("min_invest", 100.0)),
-                        key=f"amt_{p['id']}"
-                    )
-                with col_b:
-                    if st.button(f"Add to cart-{p['id']}"):
-                        if p.get("status", "").lower() != "approved":
-                            st.warning("Only approved startups can be invested in.")
-                        else:
-                            st.session_state.cart.append({
-                                "pitch_id": p["id"],
-                                "name": p["name"],
-                                "amount": float(amount),
-                                "added_at": datetime.utcnow().isoformat()
-                            })
-                            st.success(f"Added ₹{float(amount):,.2f} to cart for {p['name']}")
+                    st.markdown("### 📈 ROI Prediction (6-Month ARIMA Forecast)")
+                    if p.get("financial_csv"):
+                        try:
+                            df = safe_read_csv(BytesIO(p["financial_csv"]["content"]))
+                            dates, forecast, conf, roi = predict_forecast_and_roi(df)
+                            st.success(f"Predicted ROI over next 6 months: **{roi:.2f}%**")
 
-                # --- View Details & ROI Prediction ---
-                if st.button(f"View details-{p['id']}"):
-                    with st.expander(f"Details — {p['name']}"):
-                        st.write("Website:", p.get("website") or "-")
-                        st.write("Contact:", p.get("email"))
-                        st.write("Target funding:", f"₹{p.get('target', 0):,.2f}")
-                        st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
+                            if dates is not None:
+                                fig, ax = plt.subplots()
+                                ax.plot(df["date"], df["value"], label="Historical", linewidth=2)
+                                ax.plot(dates, forecast, linestyle="--", marker="o", label="Forecast")
+                                if conf is not None:
+                                    ax.fill_between(dates, conf.iloc[:, 0], conf.iloc[:, 1], alpha=0.2)
+                                ax.set_title(f"{p['name']} ROI Forecast")
+                                ax.set_xlabel("Date")
+                                ax.set_ylabel("Value")
+                                ax.legend()
+                                st.pyplot(fig)
+                        except Exception as e:
+                            st.warning(f"Could not process uploaded CSV: {e}")
+                    else:
+                        st.info("No financial data CSV uploaded for this startup.")
 
-                        st.markdown("### 📈 ROI Prediction (6-Month ARIMA Forecast)")
-                        if p.get("financial_csv"):
-                            try:
-                                df = safe_read_csv(BytesIO(p["financial_csv"]["content"]))
-                                dates, forecast, conf, roi = predict_forecast_and_roi(df)
-                                st.success(f"Predicted ROI over next 6 months: **{roi:.2f}%**")
+                    if p.get("files"):
+                        st.markdown("### 📂 Verification Documents")
+                        for f in p["files"]:
+                            st.write(f["name"])
+                            if f["name"].lower().endswith(".pdf"):
+                                embed_pdf_bytes(f["content"], height="240px")
+                            elif any(f["name"].lower().endswith(x) for x in [".png", ".jpg", ".jpeg"]):
+                                try:
+                                    embed_image_bytes(f["content"], width=220)
+                                except Exception:
+                                    st.write("Preview not available.")
 
-                                if dates is not None:
-                                    fig, ax = plt.subplots()
-                                    ax.plot(df["date"], df["value"], label="Historical", linewidth=2)
-                                    ax.plot(dates, forecast, linestyle="--", marker="o", label="Forecast")
-                                    if conf is not None:
-                                        ax.fill_between(dates, conf.iloc[:, 0], conf.iloc[:, 1], alpha=0.2)
-                                    ax.set_title(f"{p['name']} ROI Forecast")
-                                    ax.set_xlabel("Date")
-                                    ax.set_ylabel("Value")
-                                    ax.legend()
-                                    st.pyplot(fig)
-                            except Exception as e:
-                                st.warning(f"Could not process uploaded CSV: {e}")
-                        else:
-                            st.info("No financial data CSV uploaded for this startup.")
-
-                        # --- Attached verification documents ---
-                        if p.get("files"):
-                            st.markdown("### 📂 Verification Documents")
-                            for f in p["files"]:
-                                st.write(f["name"])
-                                if f["name"].lower().endswith(".pdf"):
-                                    embed_pdf_bytes(f["content"], height="240px")
-                                elif any(f["name"].lower().endswith(x) for x in [".png", ".jpg", ".jpeg"]):
-                                    try:
-                                        embed_image_bytes(f["content"], width=220)
-                                    except Exception:
-                                        st.write("Preview not available.")
-
-                st.markdown("</div>", unsafe_allow_html=True)
-
-            st.markdown('</div>', unsafe_allow_html=True)
-
+            st.markdown("</div>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- Cart (Right Column) ---
-    with right:
-        st.markdown('<div class="card cart">', unsafe_allow_html=True)
-        st.subheader("Investment Cart")
+    # --- Wallet & Cart Section ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
 
+    col_wallet, col_cart = st.columns([1, 2])
+    with col_wallet:
+        st.markdown('<div class="card" style="padding:15px;">', unsafe_allow_html=True)
+        st.subheader("💰 Wallet Balance")
+        wallet = st.session_state.users.get(user["username"], {}).get("wallet", 0.0)
+        st.metric("Current Balance", f"₹{wallet:,.2f}")
+
+        add_amount = st.number_input("Add funds to wallet (₹)", min_value=100.0, value=1000.0, step=100.0, key="add_funds")
+        if st.button("Add Money"):
+            st.session_state.users[user["username"]]["wallet"] = wallet + add_amount
+            st.success(f"₹{add_amount:,.2f} added successfully!")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_cart:
+        st.markdown('<div class="card" style="padding:15px;">', unsafe_allow_html=True)
+        st.subheader("🛒 Investment Cart")
         if not st.session_state.cart:
-            st.info("Cart is empty.")
+            st.info("Your cart is currently empty.")
         else:
             total = sum(item["amount"] for item in st.session_state.cart)
             for i, item in enumerate(st.session_state.cart, start=1):
-                st.write(f"{i}. {item['name']} — ₹{item['amount']:,.2f}")
+                st.markdown(f"**{i}. {item['name']}** — ₹{item['amount']:,.2f}")
                 if st.button(f"Remove-{i}", key=f"remove_{i}"):
                     st.session_state.cart.pop(i - 1)
                     st.experimental_rerun()
-
-            st.markdown(f"**Total:** ₹{total:,.2f}")
-            wallet = st.session_state.users.get(user["username"], {}).get("wallet", 0.0)
-            st.markdown(f"**Wallet:** ₹{wallet:,.2f}")
-
-            if st.button("Checkout"):
+            st.markdown(f"<br><b>Total Investment:</b> ₹{total:,.2f}", unsafe_allow_html=True)
+            if st.button("💳 Proceed to Checkout"):
                 if wallet >= total:
                     st.session_state.users[user["username"]]["wallet"] = wallet - total
                     for item in st.session_state.cart:
@@ -582,24 +598,39 @@ def investor_page(user):
                     }
                     st.session_state.orders.append(order)
                     st.session_state.cart = []
-                    st.success(f"Checkout successful. Invested ₹{total:,.2f}.")
+                    st.success(f"Checkout successful. You invested ₹{total:,.2f}.")
                 else:
-                    st.error("Insufficient wallet balance for checkout.")
-        st.markdown("</div>", unsafe_allow_html=True)
+                    st.error("Insufficient balance. Please add funds to wallet.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- My Investments Section ---
-    st.subheader("My Investments")
+    # --- Investor Dashboard ---
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("### 📊 My Investment Dashboard")
+
     mine = [inv for inv in st.session_state.investments if inv["investor"] == user["username"]]
-
     if not mine:
-        st.info("No investments yet.")
+        st.info("No investments made yet.")
     else:
-        for inv in mine:
+        df = pd.DataFrame(mine)
+        df["date"] = pd.to_datetime(df["date"])
+        total_invest = df["amount"].sum()
+        st.metric("Total Invested", f"₹{total_invest:,.2f}")
+        st.markdown("#### Recent Investments")
+        for inv in sorted(mine, key=lambda x: x["date"], reverse=True):
             p = next((x for x in st.session_state.pitches if x["id"] == inv["pitch_id"]), None)
             st.markdown(
-                f'<div class="card"><b>{p["name"] if p else "Unknown"}</b> — ₹{inv["amount"]:,.2f} on {inv["date"]}</div>',
+                f'<div class="card"><b>{p["name"] if p else "Unknown"}</b><br>'
+                f'Invested ₹{inv["amount"]:,.2f} on {inv["date"]}</div>',
                 unsafe_allow_html=True
             )
+
+        # Optional visualization
+        fig, ax = plt.subplots()
+        ax.plot(df["date"], df["amount"].cumsum(), marker="o", linewidth=2)
+        ax.set_title("Cumulative Investment Growth")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Total Invested (₹)")
+        st.pyplot(fig)
 
 
 def main_app():
@@ -622,4 +653,5 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
