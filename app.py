@@ -343,40 +343,69 @@ def landing_page():
 
 
 def startup_page(user):
-    st.header("Startup Onboarding")
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("Company details")
+    # --- HEADER ---
+    st.markdown("""
+        <div style='background:linear-gradient(90deg,#071A2A,#09344E);padding:40px 20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.45);text-align:center;'>
+            <h1 style='color:#06b6d4;font-size:2.5rem;margin-bottom:8px;'>🏢 Startup Onboarding</h1>
+            <p style='color:#9fb4c9;font-size:1.05rem;margin:0;'>Submit your verified company profile, documents, and financials to get listed on SeedConnect.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-    name = st.text_input("Company name", key="su_name")
-    website = st.text_input("Website", key="su_website")
-    contact_email = st.text_input("Contact email", key="su_email")
-    target = st.number_input("Target funding (₹)", min_value=0.0, value=500000.0, step=10000.0, key="su_target")
-    min_invest = st.number_input("Minimum investment unit (₹)", min_value=100.0, value=1000.0, step=100.0, key="su_mininv")
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown(
-        "Please upload the following documents for company verification:\n"
-        "- Certificate of Incorporation / Registration\n"
-        "- Company PAN Card\n"
-        "- Memorandum & Articles of Association (if applicable)\n"
-        "- Board Resolution authorising this platform engagement\n"
-        "- Proof of Registered Office Address (utility bill / lease / GST certificate)\n"
-        "- Identity & Address Proof of the Director(s)/Partner(s)\n"
-        "- Latest GST / Tax Registration certificate\n"
-        "- Company logo (PNG or JPG format)"
-    )
+    # --- COMPANY DETAILS SECTION ---
+    st.markdown("""
+        <div style='background:rgba(255,255,255,0.03);padding:25px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
+            <h2 style='color:#06b6d4;'>🏗️ Company Information</h2>
+            <p style='color:#9fb4c9;'>Provide basic details about your company. Ensure your contact and website information are accurate.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    name = st.text_input("Company Name", key="su_name")
+    website = st.text_input("Website (if available)", key="su_website")
+    contact_email = st.text_input("Official Contact Email", key="su_email")
+    col1, col2 = st.columns(2)
+    with col1:
+        target = st.number_input("Target Funding (₹)", min_value=0.0, value=500000.0, step=10000.0, key="su_target")
+    with col2:
+        min_invest = st.number_input("Minimum Investment Unit (₹)", min_value=100.0, value=1000.0, step=100.0, key="su_mininv")
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # --- DOCUMENT UPLOAD SECTION ---
+    st.markdown("""
+        <div style='background:rgba(255,255,255,0.02);padding:25px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
+            <h2 style='color:#06b6d4;'>📄 KYC & Compliance Documents</h2>
+            <p style='color:#9fb4c9;margin-bottom:15px;'>Upload your company’s key verification documents. A minimum of 7 documents is required for KYC review.</p>
+            <ul style='color:#c9d7e8;'>
+                <li>Certificate of Incorporation / Registration</li>
+                <li>Company PAN Card</li>
+                <li>Memorandum & Articles of Association (if applicable)</li>
+                <li>Board Resolution authorizing platform engagement</li>
+                <li>Proof of Registered Office Address (utility bill / lease / GST certificate)</li>
+                <li>Identity & Address Proof of the Director(s)/Partner(s)</li>
+                <li>Latest GST / Tax Registration certificate</li>
+            </ul>
+        </div>
+    """, unsafe_allow_html=True)
 
     docs = st.file_uploader(
-        "Upload verification documents (you may attach multiple files)", 
-        accept_multiple_files=True, type=["pdf","png","jpg","jpeg"]
+        "Upload Verification Documents (you may attach multiple files)", 
+        accept_multiple_files=True, type=["pdf", "png", "jpg", "jpeg"]
     )
-    logo = st.file_uploader("Company logo (PNG/JPG)", type=["png","jpg","jpeg"])
-    financial_csv = st.file_uploader("Upload company financial data (.csv for ROI model)", type=["csv"])
 
-    if st.button("Submit application"):
+    logo = st.file_uploader("Upload Company Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
+    financial_csv = st.file_uploader("Upload Company Financial Data (.csv for ROI model)", type=["csv"])
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if st.button("🚀 Submit Application for Review"):
         if not name or not contact_email:
-            st.warning("Provide company name and contact email.")
+            st.warning("Please provide your company name and contact email.")
         elif not docs or len(docs) < 7:
-            st.warning("Please upload at least 7 verification documents as listed.")
+            st.warning("Upload at least 7 verification documents as listed.")
         elif logo is None:
             st.warning("Please upload a company logo.")
         else:
@@ -418,51 +447,68 @@ def startup_page(user):
                         "content": financial_csv.read(),
                         "type": financial_csv.type
                     }
-                    st.success("Financial data file attached successfully.")
+                    st.success("✅ Financial data file attached successfully.")
                 except Exception as e:
                     st.warning(f"Could not read CSV file: {e}")
             else:
                 st.info("No financial data uploaded — investor ROI prediction will not be available.")
 
             st.session_state.pitches.append(pitch)
-            st.success("Application submitted for compliance review.")
+            st.success("🎉 Application submitted successfully for compliance review!")
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("<br><hr>", unsafe_allow_html=True)
 
-    st.subheader("My applications")
+    # --- MY APPLICATIONS SECTION ---
+    st.markdown("""
+        <div style='background:rgba(255,255,255,0.03);padding:25px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
+            <h2 style='color:#06b6d4;'>📂 My Applications</h2>
+            <p style='color:#9fb4c9;'>Track the progress of your startup applications and view document previews.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     mine = [p for p in st.session_state.pitches if p.get("submitted_by") == user["username"]]
     if not mine:
-        st.info("No applications yet.")
+        st.info("You have not submitted any startup applications yet.")
     else:
         for p in mine:
-            st.markdown(f'<div class="card"><h3>{html.escape(p["name"])} {status_badge_html(p.get("status"))}</h3>', unsafe_allow_html=True)
-            st.write("Website:", p.get("website") or "-")
-            st.write("Contact:", p.get("email"))
-            st.write("Target:", f"₹{p.get('target', 0):,.2f}")
-            st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
+            st.markdown(f"""
+                <div class='card' style='padding:18px;margin-bottom:16px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.45);'>
+                    <h3 style='color:#06b6d4;'>{html.escape(p["name"])} {status_badge_html(p.get("status"))}</h3>
+                    <p style='color:#9fb4c9;margin-top:-5px;'>Submitted by: <b>{p["submitted_by"]}</b></p>
+                    <p style='color:#cbd6e0;'>Website: {p.get("website") or "-"}</p>
+                    <p style='color:#cbd6e0;'>Contact: {p.get("email")}</p>
+                    <p style='color:#cbd6e0;'>Target: ₹{p.get('target', 0):,.2f}</p>
+                    <p style='color:#cbd6e0;'>Minimum Investment: ₹{p.get('min_invest', 0):,.2f}</p>
+            """, unsafe_allow_html=True)
 
             if p.get("logo"):
+                st.markdown("<b>Logo:</b>", unsafe_allow_html=True)
                 try:
                     embed_image_bytes(p["logo"]["content"], width=160)
                 except Exception:
                     st.write("Logo preview not available.")
 
             if p.get("files"):
-                st.markdown("<b>Uploaded verification documents:</b>", unsafe_allow_html=True)
+                st.markdown("<b>Uploaded Verification Documents:</b>", unsafe_allow_html=True)
+                cols = st.columns(2)
                 for f in p["files"]:
-                    st.write(f"Document {f['idx']}: {f['name']}")
-                    if f['name'].lower().endswith(".pdf"):
-                        embed_pdf_bytes(f['content'], height="320px")
-                    else:
-                        try:
-                            embed_image_bytes(f['content'], width=240)
-                        except Exception:
-                            st.write("Preview not available.")
+                    with cols[(f["idx"] - 1) % 2]:
+                        st.write(f"📎 {f['name']}")
+                        if f['name'].lower().endswith(".pdf"):
+                            embed_pdf_bytes(f['content'], height="320px")
+                        else:
+                            try:
+                                embed_image_bytes(f['content'], width=240)
+                            except Exception:
+                                st.write("Preview not available.")
 
             if p.get("financial_csv"):
-                st.markdown("**Financial data uploaded:** " + p["financial_csv"]["name"])
+                st.markdown(f"**Financial Data Uploaded:** {p['financial_csv']['name']}", unsafe_allow_html=True)
 
             st.markdown("</div>", unsafe_allow_html=True)
+
 
 def checker_page(user):
     st.header("Compliance Review Dashboard")
@@ -763,6 +809,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
