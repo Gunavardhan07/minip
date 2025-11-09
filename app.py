@@ -244,20 +244,37 @@ def startup_page(user):
     st.header("Startup Onboarding")
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("Company details")
+
     name = st.text_input("Company name", key="su_name")
     website = st.text_input("Website", key="su_website")
     contact_email = st.text_input("Contact email", key="su_email")
     target = st.number_input("Target funding (₹)", min_value=0.0, value=500000.0, step=10000.0, key="su_target")
     min_invest = st.number_input("Minimum investment unit (₹)", min_value=100.0, value=1000.0, step=100.0, key="su_mininv")
-    equity = st.number_input("Equity offered (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.1, key="su_equity")
-    st.markdown("Upload exactly 7 government ID / registration documents and one company logo")
-    docs = st.file_uploader("Government documents (7 files required)", accept_multiple_files=True, type=["pdf","png","jpg","jpeg"])
+
+    st.markdown(
+        "Please upload the following documents for company verification:\n"
+        "- Certificate of Incorporation / Registration\n"
+        "- Company PAN Card\n"
+        "- Memorandum & Articles of Association (if applicable)\n"
+        "- Board Resolution authorising this platform engagement\n"
+        "- Proof of Registered Office Address (utility bill / lease / GST certificate)\n"
+        "- Identity & Address Proof of the Director(s)/Partner(s)\n"
+        "- Latest GST / Tax Registration certificate\n"
+        "- Company logo (PNG or JPG format)"
+    )
+
+    docs = st.file_uploader(
+        "Upload verification documents (you may attach multiple files)", 
+        accept_multiple_files=True, type=["pdf","png","jpg","jpeg"]
+    )
     logo = st.file_uploader("Company logo (PNG/JPG)", type=["png","jpg","jpeg"])
+    financial_csv = st.file_uploader("Upload company financial data (.csv for ROI model)", type=["csv"])
+
     if st.button("Submit application"):
         if not name or not contact_email:
             st.warning("Provide company name and contact email.")
         elif not docs or len(docs) < 7:
-            st.warning("Please upload 7 government documents.")
+            st.warning("Please upload at least 7 verification documents as listed.")
         elif logo is None:
             st.warning("Please upload a company logo.")
         else:
@@ -268,25 +285,48 @@ def startup_page(user):
                 "email": contact_email,
                 "target": float(target),
                 "min_invest": float(min_invest),
-                "equity": float(equity),
                 "files": [],
                 "logo": None,
+                "financial_csv": None,
                 "submitted_by": user["username"],
                 "status": "Pending",
-                "doc_verification": {f"name_{i}": "Pending" for i in range(1,8)},
+                "doc_verification": {f"name_{i}": "Pending" for i in range(1, 8)},
                 "created_at": datetime.utcnow().isoformat()
             }
+
             for i, f in enumerate(docs, start=1):
                 content = f.read()
-                pitch["files"].append({"name": f.name, "content": content, "type": f.type, "idx": i})
+                pitch["files"].append({
+                    "name": f.name,
+                    "content": content,
+                    "type": f.type,
+                    "idx": i
+                })
+
             try:
                 logo_bytes = logo.read()
                 pitch["logo"] = {"name": logo.name, "content": logo_bytes, "type": logo.type}
             except Exception:
                 pitch["logo"] = None
+
+            if financial_csv is not None:
+                try:
+                    pitch["financial_csv"] = {
+                        "name": financial_csv.name,
+                        "content": financial_csv.read(),
+                        "type": financial_csv.type
+                    }
+                    st.success("Financial data file attached successfully.")
+                except Exception as e:
+                    st.warning(f"Could not read CSV file: {e}")
+            else:
+                st.info("No financial data uploaded — investor ROI prediction will not be available.")
+
             st.session_state.pitches.append(pitch)
             st.success("Application submitted for compliance review.")
+
     st.markdown('</div>', unsafe_allow_html=True)
+
     st.subheader("My applications")
     mine = [p for p in st.session_state.pitches if p.get("submitted_by") == user["username"]]
     if not mine:
@@ -296,16 +336,17 @@ def startup_page(user):
             st.markdown(f'<div class="card"><h3>{html.escape(p["name"])} {status_badge_html(p.get("status"))}</h3>', unsafe_allow_html=True)
             st.write("Website:", p.get("website") or "-")
             st.write("Contact:", p.get("email"))
-            st.write("Target:", f"₹{p.get('target',0):,.2f}")
-            st.write("Minimum investment:", f"₹{p.get('min_invest',0):,.2f}")
-            st.write("Equity offered:", f"{p.get('equity',0):.2f}%")
+            st.write("Target:", f"₹{p.get('target', 0):,.2f}")
+            st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
+
             if p.get("logo"):
                 try:
                     embed_image_bytes(p["logo"]["content"], width=160)
                 except Exception:
                     st.write("Logo preview not available.")
+
             if p.get("files"):
-                st.markdown("<b>Uploaded documents:</b>", unsafe_allow_html=True)
+                st.markdown("<b>Uploaded verification documents:</b>", unsafe_allow_html=True)
                 for f in p["files"]:
                     st.write(f"Document {f['idx']}: {f['name']}")
                     if f['name'].lower().endswith(".pdf"):
@@ -315,6 +356,10 @@ def startup_page(user):
                             embed_image_bytes(f['content'], width=240)
                         except Exception:
                             st.write("Preview not available.")
+
+            if p.get("financial_csv"):
+                st.markdown("**Financial data uploaded:** " + p["financial_csv"]["name"])
+
             st.markdown("</div>", unsafe_allow_html=True)
 
 def checker_page(user):
@@ -393,6 +438,7 @@ def investor_page(user):
 
         results = st.session_state.pitches
 
+        # --- Search & filters ---
         if q:
             results = [
                 p for p in results
@@ -415,19 +461,18 @@ def investor_page(user):
 
             for p in results[:page_size]:
                 st.markdown(f'<div class="product-card"><h4>{html.escape(p["name"])}</h4>', unsafe_allow_html=True)
-                st.markdown(f'<div class="small-muted">By {html.escape(p.get("submitted_by", "-"))}</div>', unsafe_allow_html=True)
-
-                st.write("Target:", f"₹{p.get('target', 0):,.2f}")
+                st.markdown(f'<div class="small-muted">Submitted by {html.escape(p.get("submitted_by", "-"))}</div>', unsafe_allow_html=True)
+                st.write("Target funding:", f"₹{p.get('target', 0):,.2f}")
                 st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
-                st.write("Equity:", f"{p.get('equity', 0):.2f}%")
                 st.markdown(status_badge_html(p.get("status")))
 
                 if p.get("logo"):
                     try:
                         embed_image_bytes(p["logo"]["content"], width=140)
                     except Exception:
-                        pass
+                        st.write("Logo preview not available.")
 
+                # --- Investment controls ---
                 col_a, col_b = st.columns([1, 1])
                 with col_a:
                     amount = st.number_input(
@@ -450,25 +495,18 @@ def investor_page(user):
                             })
                             st.success(f"Added ₹{float(amount):,.2f} to cart for {p['name']}")
 
-                # ---- View Details + ROI Forecast ----
+                # --- View Details & ROI Prediction ---
                 if st.button(f"View details-{p['id']}"):
                     with st.expander(f"Details — {p['name']}"):
                         st.write("Website:", p.get("website") or "-")
                         st.write("Contact:", p.get("email"))
-                        st.write("Target:", f"₹{p.get('target', 0):,.2f}")
+                        st.write("Target funding:", f"₹{p.get('target', 0):,.2f}")
                         st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
-                        st.write("Equity:", f"{p.get('equity', 0):.2f}%")
 
                         st.markdown("### 📈 ROI Prediction (6-Month ARIMA Forecast)")
-                        uploaded_csv = None
-                        for f in p.get("files", []):
-                            if f["name"].lower().endswith(".csv"):
-                                uploaded_csv = f
-                                break
-
-                        if uploaded_csv:
+                        if p.get("financial_csv"):
                             try:
-                                df = safe_read_csv(BytesIO(uploaded_csv["content"]))
+                                df = safe_read_csv(BytesIO(p["financial_csv"]["content"]))
                                 dates, forecast, conf, roi = predict_forecast_and_roi(df)
                                 st.success(f"Predicted ROI over next 6 months: **{roi:.2f}%**")
 
@@ -484,12 +522,13 @@ def investor_page(user):
                                     ax.legend()
                                     st.pyplot(fig)
                             except Exception as e:
-                                st.warning(f"Could not process uploaded CSV for ROI: {e}")
+                                st.warning(f"Could not process uploaded CSV: {e}")
                         else:
                             st.info("No financial data CSV uploaded for this startup.")
 
+                        # --- Attached verification documents ---
                         if p.get("files"):
-                            st.markdown("### 📂 Attached Documents")
+                            st.markdown("### 📂 Verification Documents")
                             for f in p["files"]:
                                 st.write(f["name"])
                                 if f["name"].lower().endswith(".pdf"):
@@ -506,10 +545,10 @@ def investor_page(user):
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ---- Right column: Cart ----
+    # --- Cart (Right Column) ---
     with right:
         st.markdown('<div class="card cart">', unsafe_allow_html=True)
-        st.subheader("Cart")
+        st.subheader("Investment Cart")
 
         if not st.session_state.cart:
             st.info("Cart is empty.")
@@ -548,8 +587,8 @@ def investor_page(user):
                     st.error("Insufficient wallet balance for checkout.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---- My Investments ----
-    st.subheader("My investments")
+    # --- My Investments Section ---
+    st.subheader("My Investments")
     mine = [inv for inv in st.session_state.investments if inv["investor"] == user["username"]]
 
     if not mine:
