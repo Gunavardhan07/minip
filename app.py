@@ -1,14 +1,3 @@
-# app.py
-"""
-CrowdPitch Pro — KYC Edition (Enhanced)
-- Landing page (login/signup)
-- Startup onboarding (more docs + target funding)
-- Checker with inline PDF/image preview
-- Investor marketplace with search/filters + card grid
-- Investor dashboard (my investments) and correct wallet handling
-- ARIMA-based ROI prediction (6-month average)
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -25,12 +14,10 @@ import base64
 import html
 import textwrap
 
-# ---------- Page config ----------
-st.set_page_config(page_title="CrowdPitch Pro — KYC Edition", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="SeedConnect — KYC Edition", page_icon="🚀", layout="wide")
 sns.set_style("darkgrid")
 plt.rcParams["figure.dpi"] = 100
 
-# ---------- CSS for cards/grid ----------
 st.markdown(
     """
     <style>
@@ -50,7 +37,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------- Utilities ----------
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -78,7 +64,8 @@ def email_domain(email: str) -> str:
     return parts[1].lower() if len(parts) == 2 else ""
 
 def name_in_filename(name: str, fname: str) -> bool:
-    if not name or not fname: return False
+    if not name or not fname:
+        return False
     n = re.sub(r'[^a-z0-9]', '', name.lower())
     f = re.sub(r'[^a-z0-9]', '', fname.lower())
     return n in f
@@ -92,7 +79,6 @@ def status_badge_html(status: str) -> str:
     return '<span class="badge badge-pending">🟡 Pending</span>'
 
 def safe_read_csv(file) -> pd.DataFrame:
-    # read and canonicalize
     df = pd.read_csv(file)
     if df.shape[1] >= 2:
         df = df.iloc[:, :2]
@@ -102,7 +88,6 @@ def safe_read_csv(file) -> pd.DataFrame:
     return df
 
 def predict_forecast_and_roi(df: pd.DataFrame, steps: int = 6):
-    # try ARIMA, fallback to linear projection
     try:
         model = sm.tsa.ARIMA(df["value"], order=(1,1,1))
         res = model.fit()
@@ -114,7 +99,6 @@ def predict_forecast_and_roi(df: pd.DataFrame, steps: int = 6):
         roi = (mean_forecast / latest - 1) * 100.0
         return future_dates, np.array(forecast), conf, roi
     except Exception:
-        # fallback simple projection
         try:
             if len(df) < 3:
                 return None, None, None, 0.0
@@ -134,7 +118,6 @@ def predict_forecast_and_roi(df: pd.DataFrame, steps: int = 6):
             return None, None, None, 0.0
 
 def embed_pdf_bytes(pdf_bytes: bytes, width="100%", height="600px"):
-    # embed pdf using base64 data URI (works for moderate sizes)
     b64 = base64.b64encode(pdf_bytes).decode("utf-8")
     src = f"data:application/pdf;base64,{b64}"
     html_tag = f'<iframe src="{src}" width="{width}" height="{height}"></iframe>'
@@ -143,7 +126,6 @@ def embed_pdf_bytes(pdf_bytes: bytes, width="100%", height="600px"):
 def embed_image_bytes(img_bytes: bytes, width=300):
     st.image(img_bytes, width=width)
 
-# ---------- session init ----------
 if "users" not in st.session_state:
     st.session_state.users = {}
 if "current_user" not in st.session_state:
@@ -157,20 +139,20 @@ if "complaints" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# demo & checker
-if "investor_demo" not in st.session_state.users:
-    st.session_state.users["investor_demo"] = {"password": hash_password("pass123"), "role": "Investor", "wallet": 10000.0}
-if "startup_demo" not in st.session_state.users:
-    st.session_state.users["startup_demo"] = {"password": hash_password("pass123"), "role": "Startup"}
-if "checker_agent" not in st.session_state.users:
-    st.session_state.users["checker_agent"] = {"password": hash_password("Check@2025!"), "role": "Checker"}
+if "investor_seedconnect" not in st.session_state.users:
+    st.session_state.users["investor_seedconnect"] = {"password": hash_password("pass123"), "role": "Investor", "wallet": 10000.0}
+if "startup_seedconnect" not in st.session_state.users:
+    st.session_state.users["startup_seedconnect"] = {"password": hash_password("pass123"), "role": "Startup"}
+if "compliance_officer" not in st.session_state.users:
+    st.session_state.users["compliance_officer"] = {"password": hash_password("Check@2025!"), "role": "Checker"}
 
-# helper ui keys
-if "_view_graph" not in st.session_state: st.session_state._view_graph = None
-if "_complaint_for" not in st.session_state: st.session_state._complaint_for = None
-if "_checker_view" not in st.session_state: st.session_state._checker_view = None
+if "_view_graph" not in st.session_state:
+    st.session_state._view_graph = None
+if "_complaint_for" not in st.session_state:
+    st.session_state._complaint_for = None
+if "_checker_view" not in st.session_state:
+    st.session_state._checker_view = None
 
-# ---------- auth ----------
 def signup(username, password, role):
     if not username or not password:
         st.warning("Enter username & password.")
@@ -206,10 +188,9 @@ def logout():
     st.session_state.page = "home"
     st.rerun()
 
-# ---------- landing / cover ----------
 def landing_page():
-    st.markdown("<h1 style='text-align:center;color:#06b6d4;'>🚀 CrowdPitch Pro</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center;color:#9fb4c9;'>Verified Crowdfunding Platform — KYC & Manual Verification Demo</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;color:#06b6d4;'>🚀 SeedConnect</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;color:#9fb4c9;'>Verified Crowdfunding Platform — KYC & Manual Verification</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns([1,2,1])
@@ -225,7 +206,6 @@ def landing_page():
                     login(li_user.strip(), li_pass)
                 else:
                     st.warning("Enter username and password.")
-            st.markdown("<div class='small-muted'>Demo accounts: <b>investor_demo</b>/<i>pass123</i> or <b>startup_demo</b>/<i>pass123</i></div>", unsafe_allow_html=True)
         else:
             st.subheader("Create account")
             su_user = st.text_input("Choose username", key="su_user")
@@ -241,36 +221,151 @@ def landing_page():
     st.markdown("---")
     left, right = st.columns([2,1])
     with left:
-        st.subheader("About CrowdPitch Pro")
+        st.subheader("About SeedConnect")
         st.write(
-            "CrowdPitch Pro is a demo platform to showcase startup onboarding with multi-document KYC, "
-            "manual checker review, investor marketplace with predictions, and complaint workflows."
+            "SeedConnect is a platform to showcase startup onboarding with multi-document KYC, "
+            "manual compliance review, investor marketplace with predictions, and complaint workflows."
         )
         st.markdown("**Contact / Support**")
-        st.write("Email: support@crowdpitch.example")
-        st.write("Twitter: @crowdpitch")
+        st.write("Email: support@seedconnect.com")
+        st.write("Twitter: @seedconnect")
     with right:
         st.subheader("FAQs")
         st.write("Is this real funding? — No, demo only.")
-        st.write("Checker (hidden): `checker_agent` / `Check@2025!`")
     st.markdown("---")
 
-# ---------- startup page (with target funding + store file bytes) ----------
 def startup_page(user):
-    # ... (unchanged content)
-    pass
+    st.header("Startup Onboarding")
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Company details")
+    name = st.text_input("Company name", key="su_name")
+    website = st.text_input("Website", key="su_website")
+    contact_email = st.text_input("Contact email", key="su_email")
+    target = st.number_input("Target funding (₹)", min_value=0.0, value=500000.0, step=10000.0)
+    files = st.file_uploader("Upload KYC / Pitch documents (PDFs, images)", accept_multiple_files=True)
+    if st.button("Submit application"):
+        if not name or not contact_email:
+            st.warning("Provide company name and contact email.")
+        else:
+            pitch = {
+                "id": len(st.session_state.pitches) + 1,
+                "name": name,
+                "website": website,
+                "email": contact_email,
+                "target": float(target),
+                "files": [],
+                "submitted_by": user["username"],
+                "status": "Pending",
+                "created_at": datetime.utcnow().isoformat()
+            }
+            for f in files:
+                content = f.read()
+                pitch["files"].append({"name": f.name, "content": content, "type": f.type})
+            st.session_state.pitches.append(pitch)
+            st.success("Application submitted.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------- checker page ----------
+    st.subheader("My applications")
+    mine = [p for p in st.session_state.pitches if p.get("submitted_by") == user["username"]]
+    if not mine:
+        st.info("No applications yet.")
+    else:
+        for p in mine:
+            st.markdown(f'<div class="card"><h3>{html.escape(p["name"])} {status_badge_html(p.get("status"))}</h3>', unsafe_allow_html=True)
+            st.write("Website:", p.get("website") or "-")
+            st.write("Contact:", p.get("email"))
+            st.write("Target:", f"₹{p.get('target',0):,.2f}")
+            if p.get("files"):
+                for idx, f in enumerate(p["files"]):
+                    st.write(f"File {idx+1}: {f['name']}")
+                    if f['name'].lower().endswith(".pdf"):
+                        embed_pdf_bytes(f['content'], height="480px")
+                    else:
+                        try:
+                            embed_image_bytes(f['content'], width=320)
+                        except Exception:
+                            st.write("Preview not available.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
 def checker_page(user):
-    # ... (unchanged content)
-    pass
+    st.header("Compliance Review")
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    view = st.selectbox("View applications", ["Pending", "All"], key="checker_view")
+    to_review = st.session_state.pitches if view == "All" else [p for p in st.session_state.pitches if p.get("status") != "Approved"]
+    if not to_review:
+        st.info("No applications to review.")
+    else:
+        for p in to_review:
+            st.markdown(f'<div class="card"><h4>{html.escape(p["name"])} — {p.get("submitted_by")}</h4>', unsafe_allow_html=True)
+            st.write("Email:", p.get("email"))
+            st.write("Website:", p.get("website"))
+            st.write("Target:", f"₹{p.get('target',0):,.2f}")
+            cols = st.columns([1,1,1,1])
+            if cols[0].button(f"Approve-{p['id']}"):
+                p["status"] = "Approved"
+                st.success(f"Application {p['id']} approved.")
+            if cols[1].button(f"Reject-{p['id']}"):
+                p["status"] = "Rejected"
+                st.error(f"Application {p['id']} rejected.")
+            if cols[2].button(f"Request Info-{p['id']}"):
+                p["status"] = "Pending"
+                st.info(f"Requested more information for {p['id']}.")
+            if cols[3].button(f"View-{p['id']}"):
+                if p.get("files"):
+                    for f in p["files"]:
+                        st.write(f["name"])
+                        if f['name'].lower().endswith(".pdf"):
+                            embed_pdf_bytes(f['content'], height="480px")
+                        else:
+                            try:
+                                embed_image_bytes(f['content'], width=320)
+                            except Exception:
+                                st.write("Preview not available.")
+            st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------- investor marketplace + dashboard ----------
 def investor_page(user):
-    # ... (unchanged content)
-    pass
+    st.header("Investor Marketplace")
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    q = st.text_input("Search startups", key="inv_search")
+    status_filter = st.selectbox("Status", ["Any", "Approved", "Pending", "Rejected"], key="inv_status")
+    results = st.session_state.pitches
+    if q:
+        results = [p for p in results if q.lower() in (p.get("name") or "").lower() or q.lower() in (p.get("website") or "").lower()]
+    if status_filter != "Any":
+        results = [p for p in results if p.get("status","").lower() == status_filter.lower()]
+    if not results:
+        st.info("No startups match your search.")
+    else:
+        st.markdown('<div class="grid">', unsafe_allow_html=True)
+        for p in results:
+            st.markdown(f'<div class="card"><h4>{html.escape(p["name"])}</h4>', unsafe_allow_html=True)
+            st.markdown(f'<div class="small-muted">By {html.escape(p.get("submitted_by","-"))}</div>', unsafe_allow_html=True)
+            st.write("Website:", p.get("website") or "-")
+            st.write("Target:", f"₹{p.get('target',0):,.2f}")
+            st.markdown(status_badge_html(p.get("status")))
+            if st.button(f"Invest-{p['id']}"):
+                investor = st.session_state.users.get(user["username"])
+                if investor and investor.get("wallet", 0) >= 1000:
+                    amount = 1000.0
+                    investor["wallet"] -= amount
+                    st.session_state.investments.append({"investor": user["username"], "pitch_id": p["id"], "amount": amount, "date": datetime.utcnow().isoformat()})
+                    st.success(f"Invested ₹{amount:,.2f} in {p['name']}")
+                else:
+                    st.error("Insufficient wallet balance.")
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------- main app routing ----------
+    st.subheader("My investments")
+    mine = [inv for inv in st.session_state.investments if inv["investor"] == user["username"]]
+    if not mine:
+        st.info("No investments yet.")
+    else:
+        for inv in mine:
+            p = next((x for x in st.session_state.pitches if x["id"] == inv["pitch_id"]), None)
+            st.markdown(f'<div class="card"><b>{p["name"] if p else "Unknown"}</b> — ₹{inv["amount"]:,.2f} on {inv["date"]}</div>', unsafe_allow_html=True)
+
 def main_app():
     user = st.session_state.current_user
     st.sidebar.markdown(f"**Logged in as:** {user['username']} ({user['role']})")
@@ -288,7 +383,6 @@ def main_app():
     else:
         st.info("Unknown role.")
 
-# ---------- router ----------
 if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
