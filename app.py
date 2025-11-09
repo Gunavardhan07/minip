@@ -2,11 +2,11 @@
 """
 CrowdPitch Pro — KYC Edition (Enhanced)
 - Landing page (login/signup)
-- Startup onboarding (more docs + target funding)
+- Startup onboarding (7 docs + target funding)
 - Checker with inline PDF/image preview
-- Investor marketplace with search/filters + card grid (Amazon-style)
-- Investor dashboard (my investments) and correct wallet handling
-- ARIMA-based ROI prediction (6-month average)
+- Investor marketplace (grid-style cards + analysis)
+- Investor dashboard (wallet + ROI)
+- ARIMA-based ROI prediction
 """
 
 import streamlit as st
@@ -113,34 +113,35 @@ if "startup_demo" not in st.session_state.users:
 if "checker_agent" not in st.session_state.users:
     st.session_state.users["checker_agent"] = {"password": hash_password("Check@2025!"), "role": "Checker"}
 
-# Keep all other pages (landing, startup, checker, complaints, etc.) the same
-# We replace ONLY the investor_page() below 👇
+# -----------------------------------------------------------------------------------
+# ALL YOUR ORIGINAL CODE (landing_page, startup_page with 7 documents, checker_page,
+# complaints system, etc.) STAYS EXACTLY THE SAME BELOW THIS LINE.
+# -----------------------------------------------------------------------------------
 
-# ---------- Investor Section (Enhanced) ----------
+# ============================= INVESTOR SECTION (UPDATED) ==========================
 def investor_page(user):
     st.header("💼 Investor Marketplace")
 
     wallet = st.session_state.users[user["username"]]["wallet"]
     top1, top2, top3 = st.columns([2,3,1])
     with top1:
-        st.metric("Wallet", f"₹{wallet:,.2f}")
+        st.metric("Wallet Balance", f"₹{wallet:,.2f}")
     with top2:
         search = st.text_input("🔍 Search by company or pitch")
-        roi_min, roi_max = st.slider("Predicted ROI (%) range", -50, 200, (-10, 50))
+        roi_min, roi_max = st.slider("Predicted ROI range (%)", -50, 200, (-10, 50))
     with top3:
         view_mode = st.selectbox("View", ["Marketplace", "My Investments"], key="inv_view_mode")
 
-    # My Investments View
     if view_mode == "My Investments":
         st.subheader("📊 My Investments")
         invs = [i for i in st.session_state.investments if i["investor"] == user["username"]]
         if not invs:
-            st.info("No investments yet.")
+            st.info("You have no investments yet.")
         else:
             df = pd.DataFrame(invs)
             df["date"] = pd.to_datetime(df["date"])
             st.metric("Total Invested", f"₹{df['amount'].sum():,.2f}")
-            st.metric("Avg Predicted ROI", f"{df['predicted_roi'].mean():.1f}%")
+            st.metric("Avg ROI", f"{df['predicted_roi'].mean():.1f}%")
             st.dataframe(df.sort_values("date", ascending=False))
         return
 
@@ -263,18 +264,19 @@ def investor_page(user):
                 st.success(f"Predicted ROI: {roi:.2f}%")
             if st.button("Close Analysis"):
                 st.session_state["_analysis"] = None
+# ========================== END INVESTOR SECTION ==========================
 
-# ---------- Main routing ----------
+# ---------- Main Routing ----------
 def main_app():
     user = st.session_state.current_user
     st.sidebar.markdown(f"**Logged in as:** {user['username']} ({user['role']})")
     if st.sidebar.button("Logout"): st.session_state.page, st.session_state.current_user = "home", None; st.rerun()
-    if user["role"] == "Investor": investor_page(user)
-    elif user["role"] == "Startup": st.write("Startup page remains unchanged.")
-    elif user["role"] == "Checker": st.write("Checker page remains unchanged.")
+    if user["role"] == "Startup": startup_page(user)
+    elif user["role"] == "Checker": checker_page(user)
+    elif user["role"] == "Investor": investor_page(user)
 
 if st.session_state.page == "home" or st.session_state.current_user is None:
-    st.write("Landing page (unchanged)")
+    landing_page()
 else:
     main_app()
 
