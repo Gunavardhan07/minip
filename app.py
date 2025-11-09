@@ -194,24 +194,35 @@ def logout():
     st.rerun()
 
 def landing_page():
-    st.markdown("<h1 style='text-align:center;color:#06b6d4;'>🚀 SeedConnect</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center;color:#9fb4c9;'>Verified Crowdfunding Platform — KYC & Compliance</p>", unsafe_allow_html=True)
+    # --- HERO HEADER ---
+    st.markdown("""
+        <div style='text-align:center;padding:60px 20px;background:linear-gradient(90deg,#071A2A,#09344E);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);'>
+            <h1 style='color:#06b6d4;font-size:3rem;margin-bottom:10px;'>🚀 SeedConnect</h1>
+            <h3 style='color:#e6eef6;margin-top:0;'>Empowering Startups, Simplifying Investments.</h3>
+            <p style='color:#9fb4c9;font-size:1rem;margin-top:10px;'>
+                A verified, secure, and transparent crowdfunding platform built for entrepreneurs and investors — powered by real-time KYC and AI-driven insights.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1,2,1])
+
+    # --- AUTH CARD (Login / Signup) ---
+    c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
         st.markdown('<div class="auth-card">', unsafe_allow_html=True)
-        mode = st.radio("Action", ["Login", "Signup"], horizontal=True)
+        mode = st.radio("Choose an action", ["Login", "Signup"], horizontal=True)
         if mode == "Login":
-            st.subheader("Sign in")
+            st.subheader("Sign In to Your Account")
             li_user = st.text_input("Username", key="li_user")
             li_pass = st.text_input("Password", type="password", key="li_pass")
             if st.button("Login"):
                 if li_user and li_pass:
                     login(li_user.strip(), li_pass)
                 else:
-                    st.warning("Enter username and password.")
+                    st.warning("Enter both username and password.")
         else:
-            st.subheader("Create account")
+            st.subheader("Create a New Account")
             su_user = st.text_input("Choose username", key="su_user")
             su_pass = st.text_input("Choose password", type="password", key="su_pass")
             role = st.selectbox("Role", ["Startup", "Investor"], key="su_role")
@@ -221,24 +232,115 @@ def landing_page():
                 else:
                     st.warning("Enter username & password.")
         st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("---")
-    left, right = st.columns([2,1])
-    with left:
-        st.subheader("About SeedConnect")
-        st.write(
-            "SeedConnect is a platform for verified startup onboarding with multi-document KYC, "
-            "manual compliance review, investor marketplace with predictions, and complaint workflows."
-        )
-        st.markdown("**Contact / Support**")
-        st.write("Email: support@seedconnect.com")
-        st.write("Twitter: @seedconnect")
-    with right:
-        st.subheader("Quick access")
-        st.write("Checker credentials for testing:")
-        st.markdown("<div class='small-muted'><b>Username:</b> compliance_officer<br><b>Password:</b> Check@2025!</div>", unsafe_allow_html=True)
-        st.subheader("FAQs")
-        st.write("Is this real funding? — No, this environment is a controlled demo for verification and testing.")
-    st.markdown("---")
+
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+
+    # --- HOW IT WORKS ---
+    st.markdown("""
+        <h2 style='text-align:center;color:#06b6d4;'>🌱 How It Works</h2>
+        <p style='text-align:center;color:#9fb4c9;'>Three simple steps to connect Startups, Investors, and Compliance Officers in one secure ecosystem.</p>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+            <div class='card'>
+                <h4 style='color:#06b6d4;'>1️⃣ For Startups</h4>
+                <ul style='color:#c9d7e8;'>
+                    <li>Register and complete KYC verification.</li>
+                    <li>Upload key company documents and logo.</li>
+                    <li>Submit financials for ROI prediction.</li>
+                    <li>Wait for compliance review & approval.</li>
+                </ul>
+            </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+            <div class='card'>
+                <h4 style='color:#06b6d4;'>2️⃣ For Investors</h4>
+                <ul style='color:#c9d7e8;'>
+                    <li>Sign up and load wallet securely.</li>
+                    <li>Browse verified startup listings.</li>
+                    <li>View predicted ROI forecasts.</li>
+                    <li>Invest safely and track your portfolio.</li>
+                </ul>
+            </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("""
+            <div class='card'>
+                <h4 style='color:#06b6d4;'>3️⃣ For Compliance Officers</h4>
+                <ul style='color:#c9d7e8;'>
+                    <li>Manually review uploaded KYC docs.</li>
+                    <li>Approve or reject startup listings.</li>
+                    <li>Ensure platform integrity and trust.</li>
+                </ul>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+
+    # --- FAQs SECTION ---
+    st.markdown("<h2 style='text-align:center;color:#06b6d4;'>❓ Frequently Asked Questions</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;color:#9fb4c9;'>Everything you need to know before getting started.</p>", unsafe_allow_html=True)
+
+    faqs = [
+        ("Is SeedConnect a real investment platform?", 
+         "Currently, this is a demo environment designed for educational and testing purposes."),
+        ("What kind of startups can apply?", 
+         "Any legally registered startup or SME with valid business documents can apply."),
+        ("What documents are required for KYC?", 
+         "Company registration, PAN, address proof, director ID, and financial statements."),
+        ("How are investors protected?", 
+         "All startups undergo a compliance review, and only approved listings can receive investments."),
+        ("Can I withdraw funds from my wallet?", 
+         "In this demo version, wallet funds are simulated and not withdrawable."),
+        ("How is ROI calculated?", 
+         "SeedConnect uses ARIMA-based time-series forecasting to estimate short-term ROI trends."),
+        ("Is my data secure?", 
+         "All uploads are processed securely, and sensitive data is never shared publicly."),
+        ("What happens if my application is rejected?", 
+         "You can reapply after addressing the compliance officer’s feedback."),
+        ("Is there any fee for joining?", 
+         "No, creating an account as a startup or investor is completely free."),
+        ("How do I contact support?", 
+         "You can reach us at <b>support@seedconnect.com</b> or via Twitter <b>@seedconnect</b>."),
+    ]
+
+    for q, a in faqs:
+        with st.expander(q):
+            st.markdown(f"<p style='color:#dbe7f3;'>{a}</p>", unsafe_allow_html=True)
+
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+
+    # --- CONTACT SECTION ---
+    st.markdown("""
+        <div style='background:linear-gradient(180deg,#0b2235,#071A2A);padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.4);'>
+            <h2 style='color:#06b6d4;text-align:center;'>📬 Contact & Company Information</h2>
+            <div style='display:flex;justify-content:space-around;flex-wrap:wrap;margin-top:20px;color:#bcd1e3;'>
+                <div style='max-width:300px;'>
+                    <h4>🏢 Headquarters</h4>
+                    <p>SeedConnect Technologies Pvt. Ltd.<br>
+                    21st Floor, Orion Business Hub,<br>
+                    Bengaluru, India 560001</p>
+                </div>
+                <div style='max-width:300px;'>
+                    <h4>📧 Contact</h4>
+                    <p>Email: <b>support@seedconnect.com</b><br>
+                    Phone: +91 98765 43210<br>
+                    Website: www.seedconnect.com</p>
+                </div>
+                <div style='max-width:300px;'>
+                    <h4>🌐 Social</h4>
+                    <p>Twitter: <b>@seedconnect</b><br>
+                    LinkedIn: /company/seedconnect<br>
+                    YouTube: SeedConnect Official</p>
+                </div>
+            </div>
+            <br><p style='text-align:center;color:#6e8aa4;font-size:0.9rem;'>© 2025 SeedConnect Technologies Pvt. Ltd. — All rights reserved.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
 
 def startup_page(user):
     st.header("Startup Onboarding")
@@ -653,5 +755,6 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
