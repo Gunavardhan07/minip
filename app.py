@@ -527,19 +527,27 @@ def checker_page(user):
     st.markdown('</div>', unsafe_allow_html=True)
 
 def investor_page(user):
-    st.markdown("<h2 style='color:#06b6d4;'>💼 Investor Marketplace & Dashboard</h2>", unsafe_allow_html=True)
-    st.markdown('<div class="card" style="padding:20px;">', unsafe_allow_html=True)
+    # --- HEADER ---
+    st.markdown("""
+        <div style='background:linear-gradient(90deg,#071A2A,#09344E);padding:40px 20px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.45);text-align:center;'>
+            <h1 style='color:#06b6d4;font-size:2.5rem;margin-bottom:8px;'>💼 Investor Marketplace</h1>
+            <p style='color:#9fb4c9;font-size:1.05rem;margin:0;'>Discover verified startups, forecast ROI, and grow your portfolio — all in one place.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-    # --- Search & Filters Section ---
-    st.markdown("### 🔍 Find Investment Opportunities")
-    st.markdown(
-        "<p style='color:#9fb4c9;font-size:0.95rem;'>Filter verified startups by approval status, target range, or search by name.</p>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- SEARCH & FILTER BAR ---
+    st.markdown("""
+        <div style='background:rgba(255,255,255,0.03);padding:20px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.4);'>
+            <h3 style='color:#06b6d4;margin-bottom:10px;'>🔍 Find Investment Opportunities</h3>
+            <p style='color:#9fb4c9;font-size:0.95rem;margin-top:-5px;'>Filter by name, approval status, or target range — discover startups that match your strategy.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns([2, 1.5, 1.5, 1])
     with col1:
-        q = st.text_input("Search by startup name or website", placeholder="e.g. SeedConnect Tech", key="inv_search")
+        q = st.text_input("Search startup or website", placeholder="e.g. SeedConnect Tech", key="inv_search")
     with col2:
         status_filter = st.selectbox("Approval Status", ["Any", "Approved", "Pending", "Rejected"], key="inv_status")
     with col3:
@@ -547,18 +555,12 @@ def investor_page(user):
     with col4:
         page_size = st.selectbox("Results per page", [6, 12, 24], index=0, key="inv_pagesize")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
 
+    # --- FILTERING LOGIC (unchanged) ---
     results = st.session_state.pitches
-
-    # --- Filter logic ---
     if q:
-        results = [
-            p for p in results
-            if q.lower() in (p.get("name") or "").lower()
-            or q.lower() in (p.get("website") or "").lower()
-        ]
+        results = [p for p in results if q.lower() in (p.get("name") or "").lower() or q.lower() in (p.get("website") or "").lower()]
     if status_filter != "Any":
         results = [p for p in results if p.get("status", "").lower() == status_filter.lower()]
     if sort_by == "Target: Low→High":
@@ -566,17 +568,20 @@ def investor_page(user):
     elif sort_by == "Target: High→Low":
         results = sorted(results, key=lambda x: x.get("target", 0), reverse=True)
 
-    # --- Results Display ---
+    # --- GRID DISPLAY ---
     if not results:
         st.info("No startups match your search filters.")
     else:
-        st.markdown('<div class="grid">', unsafe_allow_html=True)
+        st.markdown("<div class='grid'>", unsafe_allow_html=True)
         for p in results[:page_size]:
-            st.markdown(f'<div class="product-card"><h4>{html.escape(p["name"])}</h4>', unsafe_allow_html=True)
-            st.markdown(f'<div class="small-muted">Submitted by {html.escape(p.get("submitted_by", "-"))}</div>', unsafe_allow_html=True)
-            st.write("Target funding:", f"₹{p.get('target', 0):,.2f}")
-            st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
-            st.markdown(status_badge_html(p.get("status")))
+            st.markdown(f"""
+                <div class='product-card' style='padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:transform 0.2s ease-in-out;'>
+                    <h3 style='color:#06b6d4;margin-bottom:4px;'>{html.escape(p["name"])}</h3>
+                    <p class='small-muted'>Submitted by {html.escape(p.get("submitted_by", "-"))}</p>
+                    <p style='color:#cbd6e0;margin:2px 0;'>Target Funding: <b>₹{p.get('target', 0):,.2f}</b></p>
+                    <p style='color:#cbd6e0;margin:2px 0;'>Min Investment: <b>₹{p.get('min_invest', 0):,.2f}</b></p>
+                    {status_badge_html(p.get("status"))}
+            """, unsafe_allow_html=True)
 
             if p.get("logo"):
                 try:
@@ -606,15 +611,15 @@ def investor_page(user):
                         })
                         st.success(f"Added ₹{float(amount):,.2f} to cart for {p['name']}")
 
-            # --- Details + ROI Forecast ---
+            # --- VIEW DETAILS (unchanged functional logic) ---
             if st.button(f"View Details-{p['id']}"):
-                with st.expander(f"Details — {p['name']}"):
-                    st.write("Website:", p.get("website") or "-")
-                    st.write("Contact:", p.get("email"))
-                    st.write("Target:", f"₹{p.get('target', 0):,.2f}")
-                    st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
+                with st.expander(f"📘 Details — {p['name']}"):
+                    st.write("**Website:**", p.get("website") or "-")
+                    st.write("**Contact:**", p.get("email"))
+                    st.write("**Target:**", f"₹{p.get('target', 0):,.2f}")
+                    st.write("**Minimum Investment:**", f"₹{p.get('min_invest', 0):,.2f}")
 
-                    st.markdown("### 📈 ROI Prediction (6-Month ARIMA Forecast)")
+                    st.markdown("### 📈 ROI Forecast (6-Month Projection)")
                     if p.get("financial_csv"):
                         try:
                             df = safe_read_csv(BytesIO(p["financial_csv"]["content"]))
@@ -635,7 +640,7 @@ def investor_page(user):
                         except Exception as e:
                             st.warning(f"Could not process uploaded CSV: {e}")
                     else:
-                        st.info("No financial data CSV uploaded for this startup.")
+                        st.info("No financial data uploaded for this startup.")
 
                     if p.get("files"):
                         st.markdown("### 📂 Verification Documents")
@@ -650,28 +655,31 @@ def investor_page(user):
                                     st.write("Preview not available.")
 
             st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Wallet & Cart Section ---
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+
+    # --- WALLET & CART SECTION ---
+    st.markdown("<h2 style='color:#06b6d4;'>💰 My Wallet & Investments</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#9fb4c9;'>Manage your wallet balance, review your cart, and complete secure investments.</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("<hr>", unsafe_allow_html=True)
 
     col_wallet, col_cart = st.columns([1, 2])
     with col_wallet:
-        st.markdown('<div class="card" style="padding:15px;">', unsafe_allow_html=True)
-        st.subheader("💰 Wallet Balance")
+        st.markdown('<div class="card" style="padding:20px;border-radius:10px;">', unsafe_allow_html=True)
+        st.subheader("💼 Wallet Balance")
         wallet = st.session_state.users.get(user["username"], {}).get("wallet", 0.0)
-        st.metric("Current Balance", f"₹{wallet:,.2f}")
+        st.metric("Available Balance", f"₹{wallet:,.2f}")
 
         add_amount = st.number_input("Add funds to wallet (₹)", min_value=100.0, value=1000.0, step=100.0, key="add_funds")
-        if st.button("Add Money"):
+        if st.button("➕ Add Money"):
             st.session_state.users[user["username"]]["wallet"] = wallet + add_amount
             st.success(f"₹{add_amount:,.2f} added successfully!")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_cart:
-        st.markdown('<div class="card" style="padding:15px;">', unsafe_allow_html=True)
-        st.subheader("🛒 Investment Cart")
+        st.markdown('<div class="card" style="padding:20px;border-radius:10px;">', unsafe_allow_html=True)
+        st.subheader("🛒 My Investment Cart")
         if not st.session_state.cart:
             st.info("Your cart is currently empty.")
         else:
@@ -681,7 +689,7 @@ def investor_page(user):
                 if st.button(f"Remove-{i}", key=f"remove_{i}"):
                     st.session_state.cart.pop(i - 1)
                     st.experimental_rerun()
-            st.markdown(f"<br><b>Total Investment:</b> ₹{total:,.2f}", unsafe_allow_html=True)
+            st.markdown(f"<br><b>Total:</b> ₹{total:,.2f}", unsafe_allow_html=True)
             if st.button("💳 Proceed to Checkout"):
                 if wallet >= total:
                     st.session_state.users[user["username"]]["wallet"] = wallet - total
@@ -700,14 +708,16 @@ def investor_page(user):
                     }
                     st.session_state.orders.append(order)
                     st.session_state.cart = []
-                    st.success(f"Checkout successful. You invested ₹{total:,.2f}.")
+                    st.success(f"Checkout successful — Invested ₹{total:,.2f}")
                 else:
-                    st.error("Insufficient balance. Please add funds to wallet.")
+                    st.error("Insufficient balance. Please add funds.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- Investor Dashboard ---
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown("### 📊 My Investment Dashboard")
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+
+    # --- INVESTMENT DASHBOARD ---
+    st.markdown("<h2 style='color:#06b6d4;'>📊 My Investment Dashboard</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#9fb4c9;'>View all your investments and track their growth over time.</p>", unsafe_allow_html=True)
 
     mine = [inv for inv in st.session_state.investments if inv["investor"] == user["username"]]
     if not mine:
@@ -721,19 +731,17 @@ def investor_page(user):
         for inv in sorted(mine, key=lambda x: x["date"], reverse=True):
             p = next((x for x in st.session_state.pitches if x["id"] == inv["pitch_id"]), None)
             st.markdown(
-                f'<div class="card"><b>{p["name"] if p else "Unknown"}</b><br>'
-                f'Invested ₹{inv["amount"]:,.2f} on {inv["date"]}</div>',
+                f"<div class='card'><b>{p['name'] if p else 'Unknown'}</b><br>Invested ₹{inv['amount']:,.2f} on {inv['date']}</div>",
                 unsafe_allow_html=True
             )
 
-        # Optional visualization
+        # Chart
         fig, ax = plt.subplots()
         ax.plot(df["date"], df["amount"].cumsum(), marker="o", linewidth=2)
         ax.set_title("Cumulative Investment Growth")
         ax.set_xlabel("Date")
         ax.set_ylabel("Total Invested (₹)")
         st.pyplot(fig)
-
 
 def main_app():
     user = st.session_state.current_user
@@ -755,6 +763,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
