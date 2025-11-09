@@ -12,7 +12,6 @@ from urllib.parse import urlparse
 from datetime import datetime
 import base64
 import html
-import textwrap
 
 st.set_page_config(page_title="SeedConnect — KYC Edition", page_icon="🚀", layout="wide")
 sns.set_style("darkgrid")
@@ -32,6 +31,8 @@ st.markdown(
     .progress { height:10px; background: rgba(255,255,255,0.05); border-radius:8px; overflow:hidden; margin-top:8px; }
     .progress > div { background: linear-gradient(90deg,#06b6d4,#0891b2); height:100%; }
     .small-muted { color:#9fb4c9; font-size:0.9rem; }
+    .product-card { padding:12px; border-radius:8px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); box-shadow:0 6px 18px rgba(0,0,0,0.45); }
+    .cart { position: sticky; top: 20px; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -138,6 +139,10 @@ if "complaints" not in st.session_state:
     st.session_state.complaints = []
 if "page" not in st.session_state:
     st.session_state.page = "home"
+if "cart" not in st.session_state:
+    st.session_state.cart = []
+if "orders" not in st.session_state:
+    st.session_state.orders = []
 
 if "investor_seedconnect" not in st.session_state.users:
     st.session_state.users["investor_seedconnect"] = {"password": hash_password("pass123"), "role": "Investor", "wallet": 10000.0}
@@ -190,9 +195,8 @@ def logout():
 
 def landing_page():
     st.markdown("<h1 style='text-align:center;color:#06b6d4;'>🚀 SeedConnect</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center;color:#9fb4c9;'>Verified Crowdfunding Platform — KYC & Manual Verification</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;color:#9fb4c9;'>Verified Crowdfunding Platform — KYC & Compliance</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
         st.markdown('<div class="auth-card">', unsafe_allow_html=True)
@@ -217,21 +221,23 @@ def landing_page():
                 else:
                     st.warning("Enter username & password.")
         st.markdown("</div>", unsafe_allow_html=True)
-
     st.markdown("---")
     left, right = st.columns([2,1])
     with left:
         st.subheader("About SeedConnect")
         st.write(
-            "SeedConnect is a platform to showcase startup onboarding with multi-document KYC, "
+            "SeedConnect is a platform for verified startup onboarding with multi-document KYC, "
             "manual compliance review, investor marketplace with predictions, and complaint workflows."
         )
         st.markdown("**Contact / Support**")
         st.write("Email: support@seedconnect.com")
         st.write("Twitter: @seedconnect")
     with right:
+        st.subheader("Quick access")
+        st.write("Checker credentials for testing:")
+        st.markdown("<div class='small-muted'><b>Username:</b> compliance_officer<br><b>Password:</b> Check@2025!</div>", unsafe_allow_html=True)
         st.subheader("FAQs")
-        st.write("Is this real funding? — No, demo only.")
+        st.write("Is this real funding? — No, this environment is a controlled demo for verification and testing.")
     st.markdown("---")
 
 def startup_page(user):
@@ -241,11 +247,19 @@ def startup_page(user):
     name = st.text_input("Company name", key="su_name")
     website = st.text_input("Website", key="su_website")
     contact_email = st.text_input("Contact email", key="su_email")
-    target = st.number_input("Target funding (₹)", min_value=0.0, value=500000.0, step=10000.0)
-    files = st.file_uploader("Upload KYC / Pitch documents (PDFs, images)", accept_multiple_files=True)
+    target = st.number_input("Target funding (₹)", min_value=0.0, value=500000.0, step=10000.0, key="su_target")
+    min_invest = st.number_input("Minimum investment unit (₹)", min_value=100.0, value=1000.0, step=100.0, key="su_mininv")
+    equity = st.number_input("Equity offered (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.1, key="su_equity")
+    st.markdown("Upload exactly 7 government ID / registration documents and one company logo")
+    docs = st.file_uploader("Government documents (7 files required)", accept_multiple_files=True, type=["pdf","png","jpg","jpeg"])
+    logo = st.file_uploader("Company logo (PNG/JPG)", type=["png","jpg","jpeg"])
     if st.button("Submit application"):
         if not name or not contact_email:
             st.warning("Provide company name and contact email.")
+        elif not docs or len(docs) < 7:
+            st.warning("Please upload 7 government documents.")
+        elif logo is None:
+            st.warning("Please upload a company logo.")
         else:
             pitch = {
                 "id": len(st.session_state.pitches) + 1,
@@ -253,18 +267,26 @@ def startup_page(user):
                 "website": website,
                 "email": contact_email,
                 "target": float(target),
+                "min_invest": float(min_invest),
+                "equity": float(equity),
                 "files": [],
+                "logo": None,
                 "submitted_by": user["username"],
                 "status": "Pending",
+                "doc_verification": {f"name_{i}": "Pending" for i in range(1,8)},
                 "created_at": datetime.utcnow().isoformat()
             }
-            for f in files:
+            for i, f in enumerate(docs, start=1):
                 content = f.read()
-                pitch["files"].append({"name": f.name, "content": content, "type": f.type})
+                pitch["files"].append({"name": f.name, "content": content, "type": f.type, "idx": i})
+            try:
+                logo_bytes = logo.read()
+                pitch["logo"] = {"name": logo.name, "content": logo_bytes, "type": logo.type}
+            except Exception:
+                pitch["logo"] = None
             st.session_state.pitches.append(pitch)
-            st.success("Application submitted.")
+            st.success("Application submitted for compliance review.")
     st.markdown('</div>', unsafe_allow_html=True)
-
     st.subheader("My applications")
     mine = [p for p in st.session_state.pitches if p.get("submitted_by") == user["username"]]
     if not mine:
@@ -275,20 +297,28 @@ def startup_page(user):
             st.write("Website:", p.get("website") or "-")
             st.write("Contact:", p.get("email"))
             st.write("Target:", f"₹{p.get('target',0):,.2f}")
+            st.write("Minimum investment:", f"₹{p.get('min_invest',0):,.2f}")
+            st.write("Equity offered:", f"{p.get('equity',0):.2f}%")
+            if p.get("logo"):
+                try:
+                    embed_image_bytes(p["logo"]["content"], width=160)
+                except Exception:
+                    st.write("Logo preview not available.")
             if p.get("files"):
-                for idx, f in enumerate(p["files"]):
-                    st.write(f"File {idx+1}: {f['name']}")
+                st.markdown("<b>Uploaded documents:</b>", unsafe_allow_html=True)
+                for f in p["files"]:
+                    st.write(f"Document {f['idx']}: {f['name']}")
                     if f['name'].lower().endswith(".pdf"):
-                        embed_pdf_bytes(f['content'], height="480px")
+                        embed_pdf_bytes(f['content'], height="320px")
                     else:
                         try:
-                            embed_image_bytes(f['content'], width=320)
+                            embed_image_bytes(f['content'], width=240)
                         except Exception:
                             st.write("Preview not available.")
             st.markdown("</div>", unsafe_allow_html=True)
 
 def checker_page(user):
-    st.header("Compliance Review")
+    st.header("Compliance Review Dashboard")
     st.markdown('<div class="card">', unsafe_allow_html=True)
     view = st.selectbox("View applications", ["Pending", "All"], key="checker_view")
     to_review = st.session_state.pitches if view == "All" else [p for p in st.session_state.pitches if p.get("status") != "Approved"]
@@ -300,63 +330,147 @@ def checker_page(user):
             st.write("Email:", p.get("email"))
             st.write("Website:", p.get("website"))
             st.write("Target:", f"₹{p.get('target',0):,.2f}")
-            cols = st.columns([1,1,1,1])
-            if cols[0].button(f"Approve-{p['id']}"):
-                p["status"] = "Approved"
-                st.success(f"Application {p['id']} approved.")
-            if cols[1].button(f"Reject-{p['id']}"):
-                p["status"] = "Rejected"
-                st.error(f"Application {p['id']} rejected.")
-            if cols[2].button(f"Request Info-{p['id']}"):
-                p["status"] = "Pending"
-                st.info(f"Requested more information for {p['id']}.")
-            if cols[3].button(f"View-{p['id']}"):
-                if p.get("files"):
-                    for f in p["files"]:
-                        st.write(f["name"])
+            st.write("Minimum investment:", f"₹{p.get('min_invest',0):,.2f}")
+            st.write("Equity:", f"{p.get('equity',0):.2f}%")
+            if p.get("logo"):
+                st.markdown("<b>Logo</b>", unsafe_allow_html=True)
+                try:
+                    embed_image_bytes(p["logo"]["content"], width=180)
+                except Exception:
+                    st.write("Logo preview not available.")
+            if p.get("files"):
+                st.markdown("<b>Government documents</b>", unsafe_allow_html=True)
+                cols = st.columns(2)
+                for f in p["files"]:
+                    with cols[(f["idx"]-1) % 2]:
+                        st.write(f"Doc {f['idx']}: {f['name']}")
                         if f['name'].lower().endswith(".pdf"):
-                            embed_pdf_bytes(f['content'], height="480px")
+                            embed_pdf_bytes(f['content'], height="260px")
                         else:
                             try:
-                                embed_image_bytes(f['content'], width=320)
+                                embed_image_bytes(f['content'], width=220)
                             except Exception:
                                 st.write("Preview not available.")
+                        status_key = f"doc_status_{p['id']}_{f['idx']}"
+                        cur = p.get("doc_verification", {}).get(f"name_{f['idx']}","Pending")
+                        choice = st.selectbox("Mark", ["Pending","Approved","Rejected"], index=["Pending","Approved","Rejected"].index(cur), key=status_key)
+                        p["doc_verification"][f"name_{f['idx']}"] = choice
+            verified = all(v == "Approved" for v in p.get("doc_verification", {}).values())
+            cols2 = st.columns([1,1,1,1])
+            if cols2[0].button(f"Approve Application-{p['id']}"):
+                if verified:
+                    p["status"] = "Approved"
+                    st.success(f"Application {p['id']} approved.")
+                else:
+                    st.warning("All documents must be approved before approving the application.")
+            if cols2[1].button(f"Reject Application-{p['id']}"):
+                p["status"] = "Rejected"
+                st.error(f"Application {p['id']} rejected.")
+            if cols2[2].button(f"Request Info-{p['id']}"):
+                p["status"] = "Pending"
+                st.info(f"Requested more information for {p['id']}.")
+            if cols2[3].button(f"Export Docs-{p['id']}"):
+                files = []
+                for f in p.get("files", []):
+                    files.append({"name": f["name"], "size": len(f["content"]) if f.get("content") else 0})
+                df = pd.DataFrame(files)
+                csv = df_to_csv_bytes(df)
+                st.download_button(f"Download manifest {p['id']}", csv, file_name=f"manifest_{p['id']}.csv")
             st.markdown("</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 def investor_page(user):
-    st.header("Investor Marketplace")
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    q = st.text_input("Search startups", key="inv_search")
-    status_filter = st.selectbox("Status", ["Any", "Approved", "Pending", "Rejected"], key="inv_status")
-    results = st.session_state.pitches
-    if q:
-        results = [p for p in results if q.lower() in (p.get("name") or "").lower() or q.lower() in (p.get("website") or "").lower()]
-    if status_filter != "Any":
-        results = [p for p in results if p.get("status","").lower() == status_filter.lower()]
-    if not results:
-        st.info("No startups match your search.")
-    else:
-        st.markdown('<div class="grid">', unsafe_allow_html=True)
-        for p in results:
-            st.markdown(f'<div class="card"><h4>{html.escape(p["name"])}</h4>', unsafe_allow_html=True)
-            st.markdown(f'<div class="small-muted">By {html.escape(p.get("submitted_by","-"))}</div>', unsafe_allow_html=True)
-            st.write("Website:", p.get("website") or "-")
-            st.write("Target:", f"₹{p.get('target',0):,.2f}")
-            st.markdown(status_badge_html(p.get("status")))
-            if st.button(f"Invest-{p['id']}"):
-                investor = st.session_state.users.get(user["username"])
-                if investor and investor.get("wallet", 0) >= 1000:
-                    amount = 1000.0
-                    investor["wallet"] -= amount
-                    st.session_state.investments.append({"investor": user["username"], "pitch_id": p["id"], "amount": amount, "date": datetime.utcnow().isoformat()})
-                    st.success(f"Invested ₹{amount:,.2f} in {p['name']}")
-                else:
-                    st.error("Insufficient wallet balance.")
-            st.markdown("</div>", unsafe_allow_html=True)
+    st.header("Investor Marketplace — Shop-like Experience")
+    left, right = st.columns([3,1])
+    with left:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        q = st.text_input("Search startups", key="inv_search")
+        status_filter = st.selectbox("Status", ["Any", "Approved", "Pending", "Rejected"], key="inv_status")
+        sort_by = st.selectbox("Sort by", ["Relevance", "Target: Low→High", "Target: High→Low"], key="inv_sort")
+        page_size = st.selectbox("Results per page", [6, 12, 24], index=0, key="inv_pagesize")
+        results = st.session_state.pitches
+        if q:
+            results = [p for p in results if q.lower() in (p.get("name") or "").lower() or q.lower() in (p.get("website") or "").lower()]
+        if status_filter != "Any":
+            results = [p for p in results if p.get("status","").lower() == status_filter.lower()]
+        if sort_by == "Target: Low→High":
+            results = sorted(results, key=lambda x: x.get("target", 0))
+        elif sort_by == "Target: High→Low":
+            results = sorted(results, key=lambda x: x.get("target", 0), reverse=True)
+        if not results:
+            st.info("No startups match your search.")
+        else:
+            st.markdown('<div class="grid">', unsafe_allow_html=True)
+            for p in results[:page_size]:
+                st.markdown(f'<div class="product-card"><h4>{html.escape(p["name"])}</h4>', unsafe_allow_html=True)
+                st.markdown(f'<div class="small-muted">By {html.escape(p.get("submitted_by","-"))}</div>', unsafe_allow_html=True)
+                st.write("Target:", f"₹{p.get('target',0):,.2f}")
+                st.write("Minimum investment:", f"₹{p.get('min_invest',0):,.2f}")
+                st.write("Equity:", f"{p.get('equity',0):.2f}%")
+                st.markdown(status_badge_html(p.get("status")))
+                if p.get("logo"):
+                    try:
+                        embed_image_bytes(p["logo"]["content"], width=140)
+                    except Exception:
+                        pass
+                col_a, col_b = st.columns([1,1])
+                with col_a:
+                    amount = st.number_input(f"Amount to invest-{p['id']}", min_value=float(p.get("min_invest",100.0)), value=float(p.get("min_invest",1000.0)), step=float(p.get("min_invest",100.0)), key=f"amt_{p['id']}")
+                with col_b:
+                    if st.button(f"Add to cart-{p['id']}"):
+                        if p.get("status","").lower() != "approved":
+                            st.warning("Only approved startups can be invested in.")
+                        else:
+                            st.session_state.cart.append({"pitch_id": p["id"], "name": p["name"], "amount": float(amount), "added_at": datetime.utcnow().isoformat()})
+                            st.success(f"Added ₹{float(amount):,.2f} to cart for {p['name']}")
+                if st.button(f"View details-{p['id']}"):
+                    with st.expander(f"Details — {p['name']}"):
+                        st.write("Website:", p.get("website") or "-")
+                        st.write("Contact:", p.get("email"))
+                        st.write("Target:", f"₹{p.get('target',0):,.2f}")
+                        st.write("Minimum investment:", f"₹{p.get('min_invest',0):,.2f}")
+                        st.write("Equity:", f"{p.get('equity',0):.2f}%")
+                        if p.get("files"):
+                            st.write("Documents preview:")
+                            for f in p["files"]:
+                                st.write(f["name"])
+                                if f['name'].lower().endswith(".pdf"):
+                                    embed_pdf_bytes(f['content'], height="240px")
+                                else:
+                                    try:
+                                        embed_image_bytes(f['content'], width=220)
+                                    except Exception:
+                                        st.write("Preview not available.")
+                st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
+    with right:
+        st.markdown('<div class="card cart">', unsafe_allow_html=True)
+        st.subheader("Cart")
+        if not st.session_state.cart:
+            st.info("Cart is empty.")
+        else:
+            total = sum(item["amount"] for item in st.session_state.cart)
+            for i, item in enumerate(st.session_state.cart, start=1):
+                st.write(f"{i}. {item['name']} — ₹{item['amount']:,.2f}")
+                if st.button(f"Remove-{i}", key=f"remove_{i}"):
+                    st.session_state.cart.pop(i-1)
+                    st.experimental_rerun()
+            st.markdown(f"**Total:** ₹{total:,.2f}")
+            wallet = st.session_state.users.get(user["username"], {}).get("wallet", 0.0)
+            st.markdown(f"**Wallet:** ₹{wallet:,.2f}")
+            if st.button("Checkout"):
+                if wallet >= total:
+                    st.session_state.users[user["username"]]["wallet"] = wallet - total
+                    for item in st.session_state.cart:
+                        st.session_state.investments.append({"investor": user["username"], "pitch_id": item["pitch_id"], "amount": item["amount"], "date": datetime.utcnow().isoformat()})
+                    order = {"investor": user["username"], "items": list(st.session_state.cart), "total": total, "date": datetime.utcnow().isoformat()}
+                    st.session_state.orders.append(order)
+                    st.session_state.cart = []
+                    st.success(f"Checkout successful. Invested ₹{total:,.2f}.")
+                else:
+                    st.error("Insufficient wallet balance for checkout.")
+        st.markdown("</div>", unsafe_allow_html=True)
     st.subheader("My investments")
     mine = [inv for inv in st.session_state.investments if inv["investor"] == user["username"]]
     if not mine:
@@ -373,7 +487,6 @@ def main_app():
         st.sidebar.metric("Wallet (₹)", f"{st.session_state.users[user['username']].get('wallet',0.0):,.2f}")
     if st.sidebar.button("Logout"):
         logout()
-
     if user["role"] == "Startup":
         startup_page(user)
     elif user["role"] == "Checker":
