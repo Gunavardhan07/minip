@@ -80,43 +80,77 @@ def status_badge_html(status: str) -> str:
     return '<span class="badge badge-pending">🟡 Pending</span>'
 
 def safe_read_csv(file) -> pd.DataFrame:
+    """
+    Reads a CSV with multiple financial attributes.
+    Required: A 'date' column + at least 2 numeric columns.
+    """
     df = pd.read_csv(file)
-    if df.shape[1] >= 2:
-        df = df.iloc[:, :2]
-    df.columns = ["date", "value"]
+
+    # Force date column
+    if "date" not in df.columns:
+        raise ValueError("CSV must contain a 'date' column.")
+
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date")
+
+    # Select numeric columns except date
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+    if len(num_cols) < 1:
+        raise ValueError("CSV must contain at least one numeric financial metric.")
+
     return df
 
+
 def predict_forecast_and_roi(df: pd.DataFrame, steps: int = 6):
+    """
+    Multivariate ARIMAX forecasting using all numeric features in CSV.
+    Uses 'profit' as primary target if available, else first numeric column.
+    """
     try:
-        model = sm.tsa.ARIMA(df["value"], order=(1,1,1))
+        num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+        # Target variable
+        if "profit" in num_cols:
+            target_col = "profit"
+        else:
+            target_col = num_cols[0]
+
+        y = df[target_col]
+
+        # Exogenous features (other numeric variables)
+        exog_cols = [c for c in num_cols if c != target_col]
+        exog = df[exog_cols] if exog_cols else None
+
+        # Fit ARIMAX model
+        model = sm.tsa.ARIMA(y, exog=exog, order=(2,1,2))
         res = model.fit()
-        forecast = res.forecast(steps=steps)
-        conf = res.get_forecast(steps=steps).conf_int()
-        future_dates = pd.date_range(df["date"].iloc[-1], periods=steps+1, freq="M")[1:]
-        latest = df["value"].iloc[-1]
+
+        # Create future exogenous (simple forward-fill)
+        if exog is not None:
+            last_exog = exog.iloc[-1:]
+            future_exog = pd.concat([last_exog] * steps, ignore_index=True)
+        else:
+            future_exog = None
+
+        # Forecast
+        forecast = res.forecast(steps=steps, exog=future_exog)
+        conf = res.get_forecast(steps=steps, exog=future_exog).conf_int()
+
+        # Future dates
+        future_dates = pd.date_range(df["date"].iloc[-1], periods=steps + 1, freq="M")[1:]
+
+        # ROI
+        latest = y.iloc[-1]
         mean_forecast = np.mean(forecast)
         roi = (mean_forecast / latest - 1) * 100.0
+
         return future_dates, np.array(forecast), conf, roi
-    except Exception:
-        try:
-            if len(df) < 3:
-                return None, None, None, 0.0
-            pct_changes = df["value"].pct_change().dropna()
-            avg = pct_changes[-3:].mean() if len(pct_changes) >= 3 else pct_changes.mean()
-            latest = df["value"].iloc[-1]
-            vals = []
-            dates = pd.date_range(df["date"].iloc[-1], periods=steps+1, freq="M")[1:]
-            v = latest
-            for _ in range(steps):
-                v = v * (1 + avg)
-                vals.append(v)
-            mean_forecast = np.mean(vals)
-            roi = (mean_forecast / latest - 1) * 100.0
-            return dates, np.array(vals), None, roi
-        except Exception:
-            return None, None, None, 0.0
+
+    except Exception as e:
+        print("ARIMAX failed:", e)
+        return None, None, None, 0.0
+
 
 def embed_pdf_bytes(pdf_bytes: bytes, width="100%", height="600px"):
     b64 = base64.b64encode(pdf_bytes).decode("utf-8")
@@ -809,6 +843,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
