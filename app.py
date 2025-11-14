@@ -964,18 +964,28 @@ def investor_page(user):
                         st.warning(f"CSV error: {e}")
 
                 # Docs with SAFE preview
-                st.markdown("### 📂 Verification Documents")
-                for f in p["files"]:
-                    st.write(f["name"])
+               # SAFE DOCUMENT PREVIEW
+st.markdown("### 📂 Verification Documents")
 
-                    if f["name"].lower().endswith(".pdf"):
-                        embed_pdf_bytes(f["content"], height="240px")
+for f in p["files"]:
+    st.write(f["name"])
 
-                    elif f["name"].lower().endswith((".png", ".jpg", ".jpeg")):
-                        embed_image_bytes(f["content"], width=220)
+    file_name = f["name"].lower()
 
-                    else:
-                        st.info("Preview not available for this file type.")
+    # PDF
+    if file_name.endswith(".pdf"):
+        embed_pdf_bytes(f["content"], height="240px")
+        continue
+
+    # VALID IMAGE (PIL check)
+    try:
+        img = Image.open(BytesIO(f["content"]))
+        img.verify()
+        # Re-open image for display
+        img = Image.open(BytesIO(f["content"]))
+        st.image(img, width=220)
+    except:
+        st.info("Preview unavailable for this file type.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1051,6 +1061,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
