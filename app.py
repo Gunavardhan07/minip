@@ -718,21 +718,20 @@ def investor_page(user):
         If you need help understanding ROI, ARIMA forecasts, or startup metrics — just ask! 🚀  
         """)
 
-    # --- STEP PROGRESS TRACKER ---
-   st.markdown("""
-<div style='background:rgba(255,255,255,0.04);padding:20px;border-radius:10px;margin-bottom:20px;'>
-    <h3 style='color:#06b6d4;'>📊 Investment Process Tracker</h3>
-    <p style='color:#bcd1e3;'>Follow these steps to complete your investment:</p>
+    # --- TIMELINE UI ---
+    st.markdown("""
+    <div style="background:rgba(255,255,255,0.03); padding:20px; border-radius:12px; margin-bottom:25px;">
+        <h3 style="color:#06b6d4;">⏳ Investor Journey Timeline</h3>
 
-    <ol style='color:#cbd6e0;font-size:1rem;line-height:1.8;'>
-        <li><b>Browse Startups</b> — Filter, search, and select verified startups.</li>
-        <li><b>Add to Cart</b> — Choose the amount and add the opportunity to your cart.</li>
-        <li><b>Checkout</b> — Pay using your wallet and confirm your investment.</li>
-        <li><b>Track Portfolio</b> — Monitor investment history and growth charts.</li>
-    </ol>
-</div>
-""", unsafe_allow_html=True)
-
+        <ul style="list-style-type:none; padding-left:10px; color:#cbd6e0; font-size:1.05rem; line-height:1.8;">
+            <li>✔ <b>Step 1:</b> Explore all approved startups</li>
+            <li>✔ <b>Step 2:</b> Analyse ROI projections & documents</li>
+            <li>✔ <b>Step 3:</b> Add your investment to cart</li>
+            <li>✔ <b>Step 4:</b> Checkout using wallet balance</li>
+            <li>✔ <b>Step 5:</b> Track growth in the investment dashboard</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
     # --- HEADER ---
     st.markdown("""
@@ -781,14 +780,23 @@ def investor_page(user):
     else:
         st.markdown("<div class='grid'>", unsafe_allow_html=True)
         for p in results[:page_size]:
+
+            # Calculate investment progress
+            invested_amount = sum(inv["amount"] for inv in st.session_state.investments if inv["pitch_id"] == p["id"])
+            progress = min(invested_amount / p.get("target", 1), 1.0)
+
             st.markdown(f"""
-                <div class='product-card' style='padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.45);transition:transform 0.2s ease-in-out;'>
+                <div class='product-card' style='padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.45);'>
                     <h3 style='color:#06b6d4;margin-bottom:4px;'>{html.escape(p["name"])}</h3>
                     <p class='small-muted'>Submitted by {html.escape(p.get("submitted_by", "-"))}</p>
                     <p style='color:#cbd6e0;margin:2px 0;'>Target Funding: <b>₹{p.get('target', 0):,.2f}</b></p>
                     <p style='color:#cbd6e0;margin:2px 0;'>Min Investment: <b>₹{p.get('min_invest', 0):,.2f}</b></p>
                     {status_badge_html(p.get("status"))}
             """, unsafe_allow_html=True)
+
+            # --- Progress Bar UI ---
+            st.progress(progress)
+            st.markdown(f"<p style='color:#9fb4c9;'>Raised: ₹{invested_amount:,.2f} / ₹{p['target']:,.2f}</p>", unsafe_allow_html=True)
 
             if p.get("logo"):
                 try:
@@ -818,7 +826,7 @@ def investor_page(user):
                         })
                         st.success(f"Added ₹{float(amount):,.2f} to cart for {p['name']}")
 
-            # --- DETAILS ---
+            # --- VIEW DETAILS ---
             if st.button(f"View Details-{p['id']}"):
                 with st.expander(f"📘 Details — {p['name']}"):
                     st.write("**Website:**", p.get("website") or "-")
@@ -835,14 +843,13 @@ def investor_page(user):
 
                             if dates is not None:
                                 fig, ax = plt.subplots()
-                                ax.plot(df["date"], df["value"], label="Historical", linewidth=2)
-                                ax.plot(dates, forecast, linestyle="--", marker="o", label="Forecast")
+                                ax.plot(df["date"], df["value"], linewidth=2)
+                                ax.plot(dates, forecast, linestyle="--", marker="o")
                                 if conf is not None:
                                     ax.fill_between(dates, conf.iloc[:, 0], conf.iloc[:, 1], alpha=0.2)
                                 ax.set_title(f"{p['name']} ROI Forecast")
                                 ax.set_xlabel("Date")
                                 ax.set_ylabel("Value")
-                                ax.legend()
                                 st.pyplot(fig)
                         except Exception as e:
                             st.warning(f"Could not process uploaded CSV: {e}")
@@ -862,6 +869,7 @@ def investor_page(user):
                                     st.write("Preview not available.")
 
             st.markdown("</div>", unsafe_allow_html=True)
+
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<br><hr>", unsafe_allow_html=True)
@@ -949,6 +957,7 @@ def investor_page(user):
         ax.set_ylabel("Total Invested (₹)")
         st.pyplot(fig)
 
+
 def main_app():
     user = st.session_state.current_user
     st.sidebar.markdown(f"**Logged in as:** {user['username']} ({user['role']})")
@@ -969,6 +978,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
