@@ -237,26 +237,30 @@ def landing_page():
    
     bg_base64 = get_image_as_base64("images/landing_header.jpg")
 
-    st.markdown(f"""
-        <div style="background-image: url('data:image/jpg;base64,{bg_base64}');
-                background-size: cover;
-                background-position: center;
-                padding: 120px 20px;
-                border-radius: 20px;
-                text-align: center;">
-        
-            <h1 style="color:white;font-size:3.2rem;font-weight:800;
-                     text-shadow:2px 2px 8px rgba(0,0,0,0.8);">
-                🚀 SeedConnect – Startup & Investor Marketplace
-            </h1>
+    st.markdown(
+    f"""
+<div style="background-image: url('data:image/jpg;base64,{bg_base64}');
+            background-size: cover;
+            background-position: center;
+            padding: 120px 20px;
+            border-radius: 20px;
+            text-align: center;">
+    
+    <h1 style="color:white;font-size:3.2rem;font-weight:800;
+               text-shadow:2px 2px 8px rgba(0,0,0,0.8);">
+        🚀 SeedConnect – Startup & Investor Marketplace
+    </h1>
 
-            <p style="color:white;font-size:1.3rem;margin-top:10px;
-                      text-shadow:1px 1px 6px rgba(0,0,0,0.7);">
-                 Discover opportunities, pitch your ideas, and invest in the future — all in one place.
-            </p>
+    <p style="color:white;font-size:1.3rem;margin-top:10px;
+              text-shadow:1px 1px 6px rgba(0,0,0,0.7);">
+         Discover opportunities, pitch your ideas, and invest in the future — all in one place.
+    </p>
 
-        </div>
-        """, unsafe_allow_html=True)
+</div>
+""",
+    unsafe_allow_html=True
+)
+
 
    
     c1, c2, c3 = st.columns([1, 2, 1])
@@ -986,6 +990,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
