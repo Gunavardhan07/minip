@@ -690,111 +690,120 @@ def checker_page(user):
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     view = st.selectbox("View applications", ["Pending", "All"], key="checker_view")
-    to_review = st.session_state.pitches if view == "All" else [p for p in st.session_state.pitches if p.get("status") != "Approved"]
+
+    # Filter applications
+    if view == "All":
+        to_review = st.session_state.pitches
+    else:
+        to_review = [p for p in st.session_state.pitches if p.get("status") != "Approved"]
 
     if not to_review:
         st.info("No applications to review.")
-    else:
-        for p in to_review:
-            st.markdown(f'<div class="card"><h4>{html.escape(p["name"])} — {p.get("submitted_by")}</h4>', unsafe_allow_html=True)
-            st.write("Email:", p.get("email"))
-            st.write("Website:", p.get("website"))
-            st.write("Target:", f"₹{p.get('target',0):,.2f}")
-            st.write("Minimum investment:", f"₹{p.get('min_invest',0):,.2f}")
-            # show equity only if present (avoid KeyError)
+        return
+
+    for p in to_review:
+        st.markdown(f'<div class="card"><h4>{html.escape(p["name"])} — {p["submitted_by"]}</h4>', unsafe_allow_html=True)
+        st.write("Email:", p.get("email"))
+        st.write("Website:", p.get("website"))
+        st.write("Target:", f"₹{p.get('target', 0):,.2f}")
+        st.write("Minimum investment:", f"₹{p.get('min_invest', 0):,.2f}")
+
+        # Logo
+        if p.get("logo"):
+            st.markdown("<b>Logo</b>", unsafe_allow_html=True)
             try:
-                st.write("Equity:", f"{p.get('equity',0):.2f}%")
-            except Exception:
-                pass
+                img = Image.open(BytesIO(p["logo"]["content"]))
+                img.verify()
+                img = Image.open(BytesIO(p["logo"]["content"]))
+                st.image(img, width=180)
+            except:
+                st.write("Logo preview not available.")
 
-            # Logo preview
-            if p.get("logo"):
-                st.markdown("<b>Logo</b>", unsafe_allow_html=True)
-                try:
-                    embed_image_bytes(p["logo"]["content"], width=180)
-                except Exception:
-                    st.write("Logo preview not available.")
+        # Documents
+        if p.get("files"):
+            st.markdown("<b>Government documents</b>", unsafe_allow_html=True)
+            cols = st.columns(2)
 
-            # Documents and per-doc status selector
-            if p.get("files"):
-                st.markdown("<b>Government documents</b>", unsafe_allow_html=True)
-                cols = st.columns(2)
-                for f in p["files"]:
-                    with cols[(f["idx"]-1) % 2]:
-                        st.write(f"Doc {f['idx']}: {f['name']}")
-                        if f['name'].lower().endswith(".pdf"):
-                            embed_pdf_bytes(f['content'], height="260px")
-                        else:
-                            try:
-                                embed_image_bytes(f['content'], width=220)
-                            except Exception:
-                                st.write("Preview not available.")
+            for f in p["files"]:
+                with cols[(f["idx"] - 1) % 2]:
+                    st.write(f"Doc {f['idx']}: {f['name']}")
 
-                        # status selector for each document
-                        status_key = f"doc_status_{p['id']}_{f['idx']}"
-                        cur = p.get("doc_verification", {}).get(f"name_{f['idx']}", "Pending")
-                        choice = st.selectbox(
-                            "Mark",
-                            ["Pending", "Approved", "Rejected"],
-                            index=["Pending", "Approved", "Rejected"].index(cur),
-                            key=status_key
-                        )
+                    fname = f["name"].lower()
 
-                        # update in-memory status and persist immediately
-                        p.setdefault("doc_verification", {})[f"name_{f['idx']}"] = choice
-                        saved = save_pitches_to_file(st.session_state.pitches)
-                        if not saved:
-                            st.error("Could not persist document status — try again.")
-                        # No rerun here so the selectbox remains stable
-
-            # Determine if all docs are approved
-            verified = all(v == "Approved" for v in p.get("doc_verification", {}).values())
-
-            cols2 = st.columns([1,1,1,1])
-
-            # Approve application (only if all docs approved)
-            if cols2[0].button(f"Approve Application-{p['id']}"):
-                if verified:
-                    p["status"] = "Approved"
-                    if save_pitches_to_file(st.session_state.pitches):
-                        st.success(f"Application {p['id']} approved.")
-                        # refresh view to reflect updated status
-                        st.experimental_rerun()
+                    # PDF preview
+                    if fname.endswith(".pdf"):
+                        try:
+                            embed_pdf_bytes(f["content"], height="260px")
+                        except:
+                            st.write("PDF preview error.")
                     else:
-                        st.error("Could not save approval to database.")
-                else:
-                    st.warning("All documents must be approved before approving the application.")
+                        # Safe image preview
+                        try:
+                            img = Image.open(BytesIO(f["content"]))
+                            img.verify()
+                            img = Image.open(BytesIO(f["content"]))
+                            st.image(img, width=220)
+                        except:
+                            st.write("Preview not available.")
 
-            # Reject application
-            if cols2[1].button(f"Reject Application-{p['id']}"):
-                p["status"] = "Rejected"
-                if save_pitches_to_file(st.session_state.pitches):
-                    st.error(f"Application {p['id']} rejected.")
-                    st.experimental_rerun()
-                else:
-                    st.error("Could not save rejection to database.")
+                    # Verification status dropdown
+                    status_key = f"doc_status_{p['id']}_{f['idx']}"
+                    current_status = p.get("doc_verification", {}).get(f"name_{f['idx']}", "Pending")
 
-            # Request more info (set back to Pending)
-            if cols2[2].button(f"Request Info-{p['id']}"):
-                p["status"] = "Pending"
-                if save_pitches_to_file(st.session_state.pitches):
-                    st.info(f"Requested more information for {p['id']}.")
-                    st.experimental_rerun()
-                else:
-                    st.error("Could not save request to database.")
+                    p["doc_verification"][f"name_{f['idx']}"] = st.selectbox(
+                        "Mark",
+                        ["Pending", "Approved", "Rejected"],
+                        index=["Pending", "Approved", "Rejected"].index(current_status),
+                        key=status_key
+                    )
 
-            # Export documents manifest (unchanged)
-            if cols2[3].button(f"Export Docs-{p['id']}"):
-                files = []
-                for f in p.get("files", []):
-                    files.append({"name": f["name"], "size": len(f["content"]) if f.get("content") else 0})
-                df = pd.DataFrame(files)
-                csv = df_to_csv_bytes(df)
-                st.download_button(f"Download manifest {p['id']}", csv, file_name=f"manifest_{p['id']}.csv")
+        # Determine if all docs approved
+        verified = all(v == "Approved" for v in p["doc_verification"].values())
 
-            st.markdown("</div>", unsafe_allow_html=True)
+        cols2 = st.columns([1, 1, 1, 1])
+
+        # --- APPROVE ---
+        if cols2[0].button(f"Approve Application-{p['id']}"):
+            if verified:
+                p["status"] = "Approved"
+                save_pitches_to_file(st.session_state.pitches)
+                st.success(f"Application {p['id']} approved.")
+                st.rerun()
+            else:
+                st.warning("All documents must be approved first.")
+
+        # --- REJECT ---
+        if cols2[1].button(f"Reject Application-{p['id']}"):
+            p["status"] = "Rejected"
+            save_pitches_to_file(st.session_state.pitches)
+            st.error(f"Application {p['id']} rejected.")
+            st.rerun()
+
+        # --- REQUEST MORE INFO ---
+        if cols2[2].button(f"Request Info-{p['id']}"):
+            p["status"] = "Pending"
+            save_pitches_to_file(st.session_state.pitches)
+            st.info(f"Requested more information for {p['id']}.")
+            st.rerun()
+
+        # --- EXPORT DOC LIST ---
+        if cols2[3].button(f"Export Docs-{p['id']}"):
+            files = [
+                {"name": f["name"], "size": len(f["content"])}
+                for f in p.get("files", [])
+            ]
+            df = pd.DataFrame(files)
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                f"Download manifest {p['id']}",
+                csv,
+                file_name=f"manifest_{p['id']}.csv"
+            )
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 def investor_page(user):
 
@@ -1061,6 +1070,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
