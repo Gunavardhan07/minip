@@ -717,30 +717,32 @@ def investor_page(user):
         """)
 
     # --- LOAD BACKGROUND IMAGE ---
-    bg_base64 = get_image_as_base64("images/investor_bg.jpg")
-
+   
     # --- HEADER WITH BACKGROUND IMAGE ---
-    st.markdown(f"""
-    <div style="
-        background-image: url('data:image/jpg;base64,{bg_base64}');
-        background-size: cover;
-        background-position: center;
-        padding: 70px 20px;
-        border-radius: 18px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.55);
-        text-align: center;
-    ">
-        <h1 style='color:#00d0ff;font-size:3rem;font-weight:700;margin-bottom:10px;
-            text-shadow:2px 2px 8px rgba(0,0,0,0.7);'>
-            💼 Investor Marketplace
-        </h1>
+bg_base64 = get_image_as_base64("images/investor_bg.jpg")
 
-        <p style='color:#e3edf5;font-size:1.2rem;margin-top:0;
-            text-shadow:1px 1px 5px rgba(0,0,0,0.6);'>
-            Discover verified startups, forecast ROI, and grow your portfolio — all in one place.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"""
+<div style="
+    background-image: url('data:image/jpg;base64,{bg_base64}');
+    background-size: cover;
+    background-position: center;
+    padding: 70px 20px;
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+    text-align: center;
+">
+    <h1 style="color:#00d0ff;font-size:3rem;font-weight:700;margin-bottom:10px;
+        text-shadow:2px 2px 8px rgba(0,0,0,0.7);">
+        💼 Investor Marketplace
+    </h1>
+
+    <p style="color:#e3edf5;font-size:1.2rem;margin-top:0;
+        text-shadow:1px 1px 5px rgba(0,0,0,0.6);">
+        Discover verified startups, forecast ROI, and grow your portfolio — all in one place.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -979,6 +981,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
