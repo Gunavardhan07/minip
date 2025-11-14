@@ -13,6 +13,48 @@ from datetime import datetime
 import base64
 import html
 import base64
+import os
+import json
+
+DB_DIR = "database"
+PITCHES_FILE = os.path.join(DB_DIR, "pitches.json")
+
+def ensure_db():
+    """Create database folder and file if missing."""
+    try:
+        if not os.path.exists(DB_DIR):
+            os.makedirs(DB_DIR, exist_ok=True)
+        if not os.path.exists(PITCHES_FILE):
+            with open(PITCHES_FILE, "w", encoding="utf-8") as f:
+                json.dump([], f, indent=2)
+    except Exception as e:
+        # don't crash app; just log to console
+        print("ensure_db error:", e)
+
+def load_pitches_from_file():
+    """Return list of pitch dicts from JSON file (empty list if missing/invalid)."""
+    ensure_db()
+    try:
+        with open(PITCHES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+            return []
+    except Exception as e:
+        print("load_pitches_from_file error:", e)
+        return []
+
+def save_pitches_to_file(pitches_list):
+    """Overwrite JSON file with current pitches_list (list of dicts)."""
+    ensure_db()
+    try:
+        with open(PITCHES_FILE, "w", encoding="utf-8") as f:
+            json.dump(pitches_list, f, indent=2, default=str)
+        return True
+    except Exception as e:
+        print("save_pitches_to_file error:", e)
+        return False
+
 
 def get_image_as_base64(path):
     with open(path, "rb") as img_file:
@@ -171,8 +213,10 @@ if "users" not in st.session_state:
     st.session_state.users = {}
 if "current_user" not in st.session_state:
     st.session_state.current_user = None
+    
+ensure_db()
 if "pitches" not in st.session_state:
-    st.session_state.pitches = []
+    st.session_state.pitches = load_pitches_from_file()
 if "investments" not in st.session_state:
     st.session_state.investments = []
 if "complaints" not in st.session_state:
@@ -440,37 +484,28 @@ def startup_page(user):
         ### **5️⃣ Submit Your Application**
         Click **Submit Application for Review**.
 
-        A Compliance Officer will:
-        - Verify each document  
-        - Approve / reject your startup  
-        - Request more information if required  
-
         ---
         ### **6️⃣ Track Your Application**
-        Scroll down to **My Applications** to:
-        - View application status  
-        - See document previews  
-        - View any compliance officer feedback  
-
-        ---
-        If you need help at any point, feel free to ask! 🚀
+        Scroll down to **My Applications**.
         """)
 
     # --- HEADER ---
     st.markdown("""
-        <div style='background:linear-gradient(90deg,#071A2A,#09344E);padding:40px 20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.45);text-align:center;'>
+        <div style='background:linear-gradient(90deg,#071A2A,#09344E);padding:40px 20px;border-radius:12px;
+                    box-shadow:0 8px 24px rgba(0,0,0,0.45);text-align:center;'>
             <h1 style='color:#06b6d4;font-size:2.5rem;margin-bottom:8px;'>🏢 Startup Onboarding</h1>
-            <p style='color:#9fb4c9;font-size:1.05rem;margin:0;'>Submit your verified company profile, documents, and financials to get listed on SeedConnect.</p>
+            <p style='color:#9fb4c9;font-size:1.05rem;margin:0;'>Submit your verified documents & financials.</p>
         </div>
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- COMPANY DETAILS SECTION ---
+    # --- COMPANY DETAILS ---
     st.markdown("""
-        <div style='background:rgba(255,255,255,0.03);padding:25px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
+        <div style='background:rgba(255,255,255,0.03);padding:25px;border-radius:10px;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
             <h2 style='color:#06b6d4;'>🏗️ Company Information</h2>
-            <p style='color:#9fb4c9;'>Provide basic details about your company. Ensure your contact and website information are accurate.</p>
+            <p style='color:#9fb4c9;'>Provide basic details about your company.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -479,148 +514,174 @@ def startup_page(user):
     name = st.text_input("Company Name", key="su_name")
     website = st.text_input("Website (if available)", key="su_website")
     contact_email = st.text_input("Official Contact Email", key="su_email")
+
     col1, col2 = st.columns(2)
     with col1:
-        target = st.number_input("Target Funding (₹)", min_value=0.0, value=500000.0, step=10000.0, key="su_target")
+        target = st.number_input("Target Funding (₹)", min_value=0.0, value=500000.0, step=10000.0)
     with col2:
-        min_invest = st.number_input("Minimum Investment Unit (₹)", min_value=100.0, value=1000.0, step=100.0, key="su_mininv")
+        min_invest = st.number_input("Minimum Investment Unit (₹)", min_value=100.0, value=1000.0, step=100.0)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # --- DOCUMENT UPLOAD SECTION ---
+    # --- DOCUMENT UPLOAD ---
     st.markdown("""
-        <div style='background:rgba(255,255,255,0.02);padding:25px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
+        <div style='background:rgba(255,255,255,0.02);padding:25px;border-radius:10px;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
             <h2 style='color:#06b6d4;'>📄 KYC & Compliance Documents</h2>
-            <p style='color:#9fb4c9;margin-bottom:15px;'>Upload your company’s key verification documents. A minimum of 7 documents is required for KYC review.</p>
-            <ul style='color:#c9d7e8;'>
-                <li>Certificate of Incorporation / Registration</li>
-                <li>Company PAN Card</li>
-                <li>Memorandum & Articles of Association (if applicable)</li>
-                <li>Board Resolution authorizing platform engagement</li>
-                <li>Proof of Registered Office Address (utility bill / lease / GST certificate)</li>
-                <li>Identity & Address Proof of the Director(s)/Partner(s)</li>
-                <li>Latest GST / Tax Registration certificate</li>
-            </ul>
+            <p style='color:#9fb4c9;margin-bottom:15px;'>Upload minimum 7 documents.</p>
         </div>
     """, unsafe_allow_html=True)
 
-    docs = st.file_uploader(
-        "Upload Verification Documents (you may attach multiple files)", 
-        accept_multiple_files=True, type=["pdf", "png", "jpg", "jpeg"]
-    )
-
-    logo = st.file_uploader("Upload Company Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
-    financial_csv = st.file_uploader("Upload Company Financial Data (.csv for ROI model)", type=["csv"])
+    docs = st.file_uploader("Upload Verification Documents", accept_multiple_files=True,
+                            type=["pdf", "png", "jpg", "jpeg"])
+    logo = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
+    financial_csv = st.file_uploader("Upload Financial CSV (optional)", type=["csv"])
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # ---------------------------
+    #       SUBMIT APPLICATION
+    # ---------------------------
     if st.button("🚀 Submit Application for Review"):
+
+        # --- VALIDATIONS ---
         if not name or not contact_email:
-            st.warning("Please provide your company name and contact email.")
-        elif not docs or len(docs) < 7:
-            st.warning("Upload at least 7 verification documents as listed.")
-        elif logo is None:
+            st.warning("Please provide company name and contact email.")
+            return
+
+        if not docs or len(docs) < 7:
+            st.warning("Upload at least 7 verification documents.")
+            return
+
+        if logo is None:
             st.warning("Please upload a company logo.")
-        else:
-            pitch = {
-                "id": len(st.session_state.pitches) + 1,
-                "name": name,
-                "website": website,
-                "email": contact_email,
-                "target": float(target),
-                "min_invest": float(min_invest),
-                "files": [],
-                "logo": None,
-                "financial_csv": None,
-                "submitted_by": user["username"],
-                "status": "Pending",
-                "doc_verification": {f"name_{i}": "Pending" for i in range(1, 8)},
-                "created_at": datetime.utcnow().isoformat()
+            return
+
+        # --------------------------------------
+        # Build pitch object
+        # --------------------------------------
+        pitch = {
+            "id": len(st.session_state.pitches) + 1,
+            "name": name,
+            "website": website,
+            "email": contact_email,
+            "target": float(target),
+            "min_invest": float(min_invest),
+            "files": [],
+            "logo": None,
+            "financial_csv": None,
+            "submitted_by": user["username"],
+            "status": "Pending",
+            "doc_verification": {f"name_{i}": "Pending" for i in range(1, 8)},
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+        # Store document files
+        for i, f in enumerate(docs, start=1):
+            pitch["files"].append({
+                "name": f.name,
+                "content": f.read(),
+                "type": f.type,
+                "idx": i
+            })
+
+        # Logo
+        try:
+            pitch["logo"] = {
+                "name": logo.name,
+                "content": logo.read(),
+                "type": logo.type
             }
+        except:
+            pitch["logo"] = None
 
-            for i, f in enumerate(docs, start=1):
-                content = f.read()
-                pitch["files"].append({
-                    "name": f.name,
-                    "content": content,
-                    "type": f.type,
-                    "idx": i
-                })
-
+        # Financial CSV
+        if financial_csv:
             try:
-                logo_bytes = logo.read()
-                pitch["logo"] = {"name": logo.name, "content": logo_bytes, "type": logo.type}
-            except Exception:
-                pitch["logo"] = None
+                pitch["financial_csv"] = {
+                    "name": financial_csv.name,
+                    "content": financial_csv.read(),
+                    "type": financial_csv.type
+                }
+                st.success("✅ Financial CSV uploaded.")
+            except Exception as e:
+                st.warning(f"Error reading CSV: {e}")
+        else:
+            st.info("No financial CSV uploaded.")
 
-            if financial_csv is not None:
-                try:
-                    pitch["financial_csv"] = {
-                        "name": financial_csv.name,
-                        "content": financial_csv.read(),
-                        "type": financial_csv.type
-                    }
-                    st.success("✅ Financial data file attached successfully.")
-                except Exception as e:
-                    st.warning(f"Could not read CSV file: {e}")
-            else:
-                st.info("No financial data uploaded — investor ROI prediction will not be available.")
+        # --------------------------------------
+        # Save pitch (JSON DATABASE)
+        # --------------------------------------
+        pitches = st.session_state.pitches.copy()
+        pitches.append(pitch)
 
-            st.session_state.pitches.append(pitch)
-            st.success("🎉 Application submitted successfully for compliance review!")
+        if save_pitches_to_file(pitches):
+            st.session_state.pitches = pitches
+            st.success("🎉 Application submitted successfully!")
+        else:
+            st.error("❌ Failed to save application. Try again.")
 
-    st.markdown("<br><hr>", unsafe_allow_html=True)
+        st.markdown("<br><hr>", unsafe_allow_html=True)
 
-    # --- MY APPLICATIONS SECTION ---
+    # ---------------------------
+    #     LIST MY APPLICATIONS
+    # ---------------------------
     st.markdown("""
-        <div style='background:rgba(255,255,255,0.03);padding:25px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
+        <div style='background:rgba(255,255,255,0.03);padding:25px;border-radius:10px;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.4);'>
             <h2 style='color:#06b6d4;'>📂 My Applications</h2>
-            <p style='color:#9fb4c9;'>Track the progress of your startup applications and view document previews.</p>
         </div>
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     mine = [p for p in st.session_state.pitches if p.get("submitted_by") == user["username"]]
+
     if not mine:
         st.info("You have not submitted any startup applications yet.")
-    else:
-        for p in mine:
-            st.markdown(f"""
-                <div class='card' style='padding:18px;margin-bottom:16px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.45);'>
-                    <h3 style='color:#06b6d4;'>{html.escape(p["name"])} {status_badge_html(p.get("status"))}</h3>
-                    <p style='color:#9fb4c9;margin-top:-5px;'>Submitted by: <b>{p["submitted_by"]}</b></p>
-                    <p style='color:#cbd6e0;'>Website: {p.get("website") or "-"}</p>
-                    <p style='color:#cbd6e0;'>Contact: {p.get("email")}</p>
-                    <p style='color:#cbd6e0;'>Target: ₹{p.get('target', 0):,.2f}</p>
-                    <p style='color:#cbd6e0;'>Minimum Investment: ₹{p.get('min_invest', 0):,.2f}</p>
-            """, unsafe_allow_html=True)
+        return
 
-            if p.get("logo"):
-                st.markdown("<b>Logo:</b>", unsafe_allow_html=True)
-                try:
-                    embed_image_bytes(p["logo"]["content"], width=160)
-                except Exception:
-                    st.write("Logo preview not available.")
+    # Application cards
+    for p in mine:
+        st.markdown(f"""
+            <div style='padding:18px;margin-bottom:16px;border-radius:10px;
+                        box-shadow:0 4px 16px rgba(0,0,0,0.45);'>
+                <h3 style='color:#06b6d4;'>{html.escape(p["name"])} {status_badge_html(p["status"])}</h3>
+                <p style='color:#9fb4c9;'>Submitted by: <b>{p["submitted_by"]}</b></p>
+                <p style='color:#cbd6e0;'>Website: {p["website"] or "-"}</p>
+                <p style='color:#cbd6e0;'>Contact: {p["email"]}</p>
+                <p style='color:#cbd6e0;'>Target: ₹{p["target"]:,.2f}</p>
+                <p style='color:#cbd6e0;'>Minimum Investment: ₹{p["min_invest"]:,.2f}</p>
+        """, unsafe_allow_html=True)
 
-            if p.get("files"):
-                st.markdown("<b>Uploaded Verification Documents:</b>", unsafe_allow_html=True)
-                cols = st.columns(2)
-                for f in p["files"]:
-                    with cols[(f["idx"] - 1) % 2]:
-                        st.write(f"📎 {f['name']}")
-                        if f['name'].lower().endswith(".pdf"):
-                            embed_pdf_bytes(f['content'], height="320px")
-                        else:
-                            try:
-                                embed_image_bytes(f['content'], width=240)
-                            except Exception:
-                                st.write("Preview not available.")
+        # Logo
+        if p.get("logo"):
+            st.markdown("<b>Logo:</b>", unsafe_allow_html=True)
+            try:
+                embed_image_bytes(p["logo"]["content"], width=160)
+            except:
+                st.write("Logo preview unavailable.")
 
-            if p.get("financial_csv"):
-                st.markdown(f"**Financial Data Uploaded:** {p['financial_csv']['name']}", unsafe_allow_html=True)
+        # Documents
+        if p.get("files"):
+            st.markdown("<b>Uploaded Verification Documents:</b>", unsafe_allow_html=True)
+            cols = st.columns(2)
+            for f in p["files"]:
+                with cols[(f["idx"] - 1) % 2]:
+                    st.write(f"📎 {f['name']}")
+                    if f["name"].lower().endswith(".pdf"):
+                        embed_pdf_bytes(f["content"], height="320px")
+                    else:
+                        try:
+                            embed_image_bytes(f["content"], width=240)
+                        except:
+                            st.write("Preview unavailable.")
 
-            st.markdown("</div>", unsafe_allow_html=True)
+        # Financial CSV
+        if p.get("financial_csv"):
+            st.markdown(f"**Financial Data:** {p['financial_csv']['name']}", unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 
@@ -981,6 +1042,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
