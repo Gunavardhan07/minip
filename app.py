@@ -234,9 +234,7 @@ def logout():
     st.rerun()
 
 def landing_page():
-    # --- HERO HEADER ---
-    def landing_page():
-    # Load header image
+   
     bg_base64 = get_image_as_base64("images/landing_header.jpg")
 
     st.markdown(f"""
@@ -1002,6 +1000,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
