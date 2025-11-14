@@ -804,22 +804,20 @@ def investor_page(user):
         ### 💼 **Investor Guide: How to Invest on SeedConnect**
 
         ---
-        ### **1️⃣ Browse & Search Startups**
-        - Filter by name / approval / target amount  
+        ### **1️⃣ Browse Startups**
+        Filter by name, approval status, target funding.
 
         ---
         ### **2️⃣ View Details**
-        - ROI forecast  
-        - Financials  
-        - KYC docs  
+        ROI forecast, KYC docs, financials.
 
         ---
         ### **3️⃣ Add to Cart**
-        Only approved startups can be invested in  
+        Only approved startups can be invested in.
 
         ---
         ### **4️⃣ Checkout**
-        Uses wallet balance  
+        Uses wallet. Investments saved permanently.
         """)
 
     # --- HEADER IMAGE ---
@@ -895,7 +893,6 @@ def investor_page(user):
         )
         progress = min(invested_amount / p["target"], 1.0)
 
-        # Card
         st.markdown(f"""
             <div class='product-card' style='padding:18px;border-radius:12px;'>
                 <h3 style='color:#06b6d4;'>{html.escape(p["name"])}</h3>
@@ -911,11 +908,15 @@ def investor_page(user):
             unsafe_allow_html=True
         )
 
+        # SAFE LOGO PREVIEW
         if p.get("logo"):
             try:
-                embed_image_bytes(p["logo"]["content"], width=120)
+                img = Image.open(BytesIO(p["logo"]["content"]))
+                img.verify()
+                img = Image.open(BytesIO(p["logo"]["content"]))
+                st.image(img, width=120)
             except:
-                st.warning("⚠ Logo cannot be displayed.")
+                st.info("⚠ Logo cannot be displayed.")
 
         # Invest input
         colA, colB = st.columns([1, 1])
@@ -943,7 +944,6 @@ def investor_page(user):
         # DETAILS BLOCK
         if st.button(f"View Details-{p['id']}"):
             with st.expander(f"📘 Details — {p['name']}"):
-
                 st.write("**Website:**", p.get("website") or "-")
                 st.write("**Contact:**", p["email"])
 
@@ -963,29 +963,28 @@ def investor_page(user):
                     except Exception as e:
                         st.warning(f"CSV error: {e}")
 
-                # Docs with SAFE preview
-               # SAFE DOCUMENT PREVIEW
-st.markdown("### 📂 Verification Documents")
+                # -----------------------------
+                # SAFE DOCUMENT PREVIEW
+                # -----------------------------
+                st.markdown("### 📂 Verification Documents")
+                for f in p["files"]:
+                    st.write(f["name"])
 
-for f in p["files"]:
-    st.write(f["name"])
+                    fname = f["name"].lower()
 
-    file_name = f["name"].lower()
+                    # PDF
+                    if fname.endswith(".pdf"):
+                        embed_pdf_bytes(f["content"], height="240px")
+                        continue
 
-    # PDF
-    if file_name.endswith(".pdf"):
-        embed_pdf_bytes(f["content"], height="240px")
-        continue
-
-    # VALID IMAGE (PIL check)
-    try:
-        img = Image.open(BytesIO(f["content"]))
-        img.verify()
-        # Re-open image for display
-        img = Image.open(BytesIO(f["content"]))
-        st.image(img, width=220)
-    except:
-        st.info("Preview unavailable for this file type.")
+                    # SAFE IMAGE CHECK WITH PIL
+                    try:
+                        img = Image.open(BytesIO(f["content"]))
+                        img.verify()     # validate
+                        img = Image.open(BytesIO(f["content"]))  # reopen
+                        st.image(img, width=220)
+                    except:
+                        st.info("Preview unavailable for this file type.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1023,6 +1022,7 @@ for f in p["files"]:
 
             if st.button("💳 Checkout"):
                 if wallet >= total:
+
                     st.session_state.users[user["username"]]["wallet"] -= total
 
                     for item in st.session_state.cart:
@@ -1061,6 +1061,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
