@@ -734,14 +734,26 @@ def investor_page(user):
     """, unsafe_allow_html=True)
 
     # --- HEADER ---
-    st.markdown("""
-        <div style='background:linear-gradient(90deg,#071A2A,#09344E);padding:40px 20px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.45);text-align:center;'>
-            <h1 style='color:#06b6d4;font-size:2.5rem;margin-bottom:8px;'>💼 Investor Marketplace</h1>
-            <p style='color:#9fb4c9;font-size:1.05rem;margin:0;'>Discover verified startups, forecast ROI, and grow your portfolio — all in one place.</p>
-        </div>
-    """, unsafe_allow_html=True)
+    # --- HEADER WITH BACKGROUND IMAGE ---
+   st.markdown("""
+    <div style="
+        background-image: url('images/investor_bg.jpg');
+        background-size: cover;
+        background-position: center;
+        padding: 60px 20px;
+        border-radius: 18px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+        text-align: center;
+        ">
+        <h1 style='color:#00d0ff;font-size:3rem;font-weight:700;margin-bottom:10px;text-shadow:2px 2px 8px rgba(0,0,0,0.7);'>
+            💼 Investor Marketplace
+        </h1>
+        <p style='color:#e3edf5;font-size:1.2rem;margin-top:0;text-shadow:1px 1px 5px rgba(0,0,0,0.6);'>
+            Discover verified startups, forecast ROI, and grow your portfolio — all in one place.
+        </p>
+    </div>
+""", unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
 
     # --- SEARCH & FILTER BAR ---
     st.markdown("""
@@ -978,6 +990,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
