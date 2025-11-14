@@ -850,7 +850,7 @@ def investor_page(user):
     # ---------------------------
     try:
         bg_base64 = get_image_as_base64("images/investor_bg.jpg")
-    except:
+    except Exception:
         bg_base64 = ""
 
     st.markdown(f"""
@@ -938,7 +938,7 @@ def investor_page(user):
         if p.get("logo"):
             try:
                 embed_image_bytes(p["logo"]["content"], width=120)
-            except:
+            except Exception:
                 st.write("Logo unavailable")
 
         # INVEST SECTION
@@ -965,24 +965,100 @@ def investor_page(user):
                     })
                     st.success("Added to cart!")
 
-        # DETAILS
+        # DETAILS (with corrected ARIMA plotting)
         if st.button(f"Details-{p['id']}"):
             with st.expander(f"📘 {p['name']} — Details"):
                 st.write("**Website:**", p.get("website"))
                 st.write("**Contact:**", p.get("email"))
                 st.write("**Target Funding:**", f"₹{p['target']:,.2f}")
 
-                if p.get("files"):
-                    st.markdown("### 📄 Documents")
-                    for f in p["files"]:
-                        st.write(f["name"])
-                        if f["name"].lower().endswith(".pdf"):
-                            embed_pdf_bytes(f["content"], height="240px")
+                # --- ROI forecasting: handle CSV and plotting robustly ---
+                st.markdown("### 📈 ROI Forecast")
+                if p.get("financial_csv"):
+                    try:
+                        # safe_read_csv expects a file-like; ensure bytes
+                        content = p["financial_csv"]["content"]
+                        # If content is str (old bad data), convert to bytes
+                        if isinstance(content, str):
+                            content = content.encode("utf-8")
+
+                        df = safe_read_csv(BytesIO(content))  # returns dataframe with date + numeric cols
+
+                        # Determine target column for plotting & forecasting
+                        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+                        if not numeric_cols:
+                            st.warning("Financial CSV contains no numeric columns for forecasting.")
                         else:
-                            try:
-                                embed_image_bytes(f["content"], width=200)
-                            except:
-                                st.write("Preview unavailable")
+                            # Choose 'profit' if available, otherwise first numeric column
+                            if "profit" in numeric_cols:
+                                plot_col = "profit"
+                            else:
+                                plot_col = numeric_cols[0]
+
+                            # Run forecast using your existing helper
+                            dates, forecast, conf, roi = predict_forecast_and_roi(df, steps=6)
+
+                            # Show ROI metric (even if forecast failed, roi may be 0.0)
+                            st.success(f"Predicted 6-Month ROI: **{roi:.2f}%**")
+
+                            # Plot historical and forecast if available
+                            fig, ax = plt.subplots()
+
+                            # Historical plot of the chosen target
+                            ax.plot(df["date"], df[plot_col], label="Historical", linewidth=2)
+
+                            if dates is not None and forecast is not None:
+                                # forecast is an array aligned with 'dates'
+                                ax.plot(dates, forecast, linestyle="--", marker="o", label="Forecast")
+
+                                # draw confidence interval if conf is provided and has correct shape
+                                try:
+                                    if conf is not None and hasattr(conf, "iloc"):
+                                        lower = conf.iloc[:, 0].values
+                                        upper = conf.iloc[:, 1].values
+                                        ax.fill_between(dates, lower, upper, alpha=0.2)
+                                except Exception:
+                                    pass
+
+                            ax.set_title(f"{p['name']} — {plot_col} Forecast")
+                            ax.set_xlabel("Date")
+                            ax.set_ylabel(plot_col.capitalize())
+                            ax.legend()
+                            st.pyplot(fig)
+                    except Exception as e:
+                        st.warning(f"Could not process financial CSV: {e}")
+                else:
+                    st.info("No financial data uploaded for this startup.")
+
+                # -----------------------------
+                # SAFE DOCUMENT PREVIEW
+                # -----------------------------
+                st.markdown("### 📂 Verification Documents")
+                for f in p.get("files", []):
+                    st.write(f["name"])
+                    # handle string vs bytes
+                    data = f.get("content")
+                    if isinstance(data, str):
+                        try:
+                            data = data.encode("latin1")
+                        except Exception:
+                            st.info("Invalid file content — cannot preview.")
+                            continue
+
+                    if f["name"].lower().endswith(".pdf"):
+                        try:
+                            embed_pdf_bytes(data, height="240px")
+                        except Exception:
+                            st.info("PDF could not be displayed.")
+                    else:
+                        # try PIL open for images
+                        try:
+                            img = Image.open(BytesIO(data))
+                            img.verify()
+                            img = Image.open(BytesIO(data))
+                            st.image(img, width=220)
+                        except Exception:
+                            st.info("Preview unavailable for this file type.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1058,13 +1134,13 @@ def investor_page(user):
         st.info("You have no investments yet.")
         return
 
-    df = pd.DataFrame(mine)
-    df["date"] = pd.to_datetime(df["date"])
+    df_inv = pd.DataFrame(mine)
+    df_inv["date"] = pd.to_datetime(df_inv["date"])
 
-    st.metric("Total Invested", f"₹{df['amount'].sum():,.2f}")
+    st.metric("Total Invested", f"₹{df_inv['amount'].sum():,.2f}")
 
     fig, ax = plt.subplots()
-    ax.plot(df["date"], df["amount"].cumsum(), marker="o", linewidth=2)
+    ax.plot(df_inv["date"], df_inv["amount"].cumsum(), marker="o", linewidth=2)
     ax.set_title("Cumulative Investment Growth")
     ax.set_xlabel("Date")
     ax.set_ylabel("Total Invested (₹)")
@@ -1091,6 +1167,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
