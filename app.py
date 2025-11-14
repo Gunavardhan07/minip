@@ -311,7 +311,7 @@ def landing_page():
     <div style="background-image: url('data:image/jpg;base64,{bg_base64}');
                 background-size: cover;
                 background-position: center;
-                padding: 80px 20px;
+                padding: 180px 20px;
                 border-radius: 20px;
                 text-align: center;">
     
@@ -1167,6 +1167,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
