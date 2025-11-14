@@ -18,6 +18,8 @@ import json
 
 DB_DIR = "database"
 PITCHES_FILE = os.path.join(DB_DIR, "pitches.json")
+INVESTMENTS_FILE = os.path.join(DB_DIR, "investments.json")
+
 
 def ensure_db():
     """Create database folder and file if missing."""
@@ -54,6 +56,28 @@ def save_pitches_to_file(pitches_list):
     except Exception as e:
         print("save_pitches_to_file error:", e)
         return False
+def load_investments_from_file():
+    ensure_db()
+    if not os.path.exists(INVESTMENTS_FILE):
+        with open(INVESTMENTS_FILE, "w") as f:
+            json.dump([], f)
+        return []
+    try:
+        with open(INVESTMENTS_FILE, "r") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except:
+        return []
+
+def save_investments_to_file(inv_list):
+    ensure_db()
+    try:
+        with open(INVESTMENTS_FILE, "w") as f:
+            json.dump(inv_list, f, indent=2, default=str)
+        return True
+    except:
+        return False
+
 
 
 def get_image_as_base64(path):
@@ -218,7 +242,8 @@ ensure_db()
 if "pitches" not in st.session_state:
     st.session_state.pitches = load_pitches_from_file()
 if "investments" not in st.session_state:
-    st.session_state.investments = []
+    st.session_state.investments = load_investments_from_file()
+
 if "complaints" not in st.session_state:
     st.session_state.complaints = []
 if "page" not in st.session_state:
@@ -807,18 +832,22 @@ def checker_page(user):
 
 def investor_page(user):
 
-    # --- HELP ---
+    # ---------------------------
+    # HELP SECTION
+    # ---------------------------
     with st.expander("📘 HELP — How to Use the Investor Dashboard"):
         st.markdown("""
         ### 💼 Investor Guide
-        - Browse startups  
-        - View ROI forecast  
-        - Add investments to cart  
-        - Checkout using wallet  
-        - Track portfolio performance  
+        - Browse approved startups  
+        - View ROI forecasts  
+        - Add investments to your cart  
+        - Pay using wallet balance  
+        - Track your portfolio with a growth chart  
         """)
 
-    # --- HEADER IMAGE ---
+    # ---------------------------
+    # HEADER WITH BACKGROUND IMAGE
+    # ---------------------------
     try:
         bg_base64 = get_image_as_base64("images/investor_bg.jpg")
     except:
@@ -826,10 +855,9 @@ def investor_page(user):
 
     st.markdown(f"""
         <div style="background-image: url('data:image/jpg;base64,{bg_base64}');
-                    background-size: cover; background-position: center;
-                    padding: 70px 20px; border-radius: 18px;
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.55);
-                    text-align:center;">
+                    background-size: cover; background-position:center;
+                    padding: 70px 20px; border-radius:18px;
+                    text-align:center; box-shadow:0 8px 24px rgba(0,0,0,0.55);">
             <h1 style="color:#00d0ff;font-size:3rem;font-weight:700;
                        text-shadow:2px 2px 8px rgba(0,0,0,0.7);">
                 💼 Investor Marketplace
@@ -842,10 +870,12 @@ def investor_page(user):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- SEARCH PANEL ---
+    # ---------------------------
+    # SEARCH & FILTERS
+    # ---------------------------
     col1, col2, col3, col4 = st.columns([2, 1.5, 1.5, 1])
     with col1:
-        q = st.text_input("Search", placeholder="Search by name or website")
+        q = st.text_input("Search Startup", placeholder="Name or website")
     with col2:
         status_filter = st.selectbox("Status", ["Any", "Approved", "Pending", "Rejected"])
     with col3:
@@ -855,22 +885,26 @@ def investor_page(user):
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # --- FILTER STARTUPS ---
+    # ---------------------------
+    # FILTER STARTUPS
+    # ---------------------------
     results = st.session_state.pitches
 
     if q:
-        results = [p for p in results if q.lower() in p.get("name","").lower()
-                                     or q.lower() in p.get("website","").lower()]
+        results = [p for p in results if q.lower() in p.get("name", "").lower()
+                                     or q.lower() in p.get("website", "").lower()]
 
     if status_filter != "Any":
-        results = [p for p in results if p.get("status","").lower() == status_filter.lower()]
+        results = [p for p in results if p.get("status", "").lower() == status_filter.lower()]
 
     if sort_by == "Target: Low→High":
         results = sorted(results, key=lambda x: x.get("target", 0))
     elif sort_by == "Target: High→Low":
         results = sorted(results, key=lambda x: x.get("target", 0), reverse=True)
 
-    # --- SHOW RESULTS ---
+    # ---------------------------
+    # DISPLAY GRID OF STARTUPS
+    # ---------------------------
     if not results:
         st.info("No startups match your filters.")
         return
@@ -893,6 +927,7 @@ def investor_page(user):
                 {status_badge_html(p['status'])}
         """, unsafe_allow_html=True)
 
+        # Progress Bar
         st.progress(progress)
         st.markdown(
             f"<p style='color:#9fb4c9;'>Raised ₹{invested_amount:,.2f} / ₹{p['target']:,.2f}</p>",
@@ -904,9 +939,9 @@ def investor_page(user):
             try:
                 embed_image_bytes(p["logo"]["content"], width=120)
             except:
-                st.write("Logo unavailable.")
+                st.write("Logo unavailable")
 
-        # INVEST
+        # INVEST SECTION
         colA, colB = st.columns([1, 1])
         with colA:
             amount = st.number_input(
@@ -914,8 +949,9 @@ def investor_page(user):
                 min_value=float(p["min_invest"]),
                 value=float(p["min_invest"]),
                 step=float(p["min_invest"]),
-                key=f"inv_amt_{p['id']}"
+                key=f"amt_{p['id']}"
             )
+
         with colB:
             if st.button(f"Add to Cart-{p['id']}"):
                 if p["status"].lower() != "approved":
@@ -946,14 +982,16 @@ def investor_page(user):
                             try:
                                 embed_image_bytes(f["content"], width=200)
                             except:
-                                st.write("Preview unavailable.")
+                                st.write("Preview unavailable")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # --- WALLET + CART ---
+    # ---------------------------
+    # WALLET AND CART
+    # ---------------------------
     colW, colC = st.columns([1, 2])
 
     # WALLET
@@ -965,13 +1003,13 @@ def investor_page(user):
         add_money = st.number_input("Add Funds", min_value=100.0, value=1000.0)
         if st.button("➕ Add"):
             st.session_state.users[user["username"]]["wallet"] += add_money
-            st.success("Money added!")
+            st.success("Funds added successfully")
 
     # CART
     with colC:
-        st.subheader("🛒 Cart")
+        st.subheader("🛒 Investment Cart")
         if not st.session_state.cart:
-            st.info("Cart empty.")
+            st.info("Cart is empty.")
         else:
             total = sum(x["amount"] for x in st.session_state.cart)
             for i, item in enumerate(st.session_state.cart, 1):
@@ -980,16 +1018,16 @@ def investor_page(user):
                     st.session_state.cart.pop(i-1)
                     st.rerun()
 
-            st.write(f"**Total:** ₹{total:,.2f}")
+            st.write(f"**Total: ₹{total:,.2f}**")
 
             # CHECKOUT
             if st.button("💳 Checkout"):
                 if wallet < total:
-                    st.error("Insufficient balance.")
+                    st.error("Insufficient wallet balance.")
                 else:
                     st.session_state.users[user["username"]]["wallet"] -= total
-                    inv_list = st.session_state.investments.copy()
 
+                    inv_list = st.session_state.investments.copy()
                     for item in st.session_state.cart:
                         inv_list.append({
                             "id": len(inv_list) + 1,
@@ -1003,19 +1041,21 @@ def investor_page(user):
                     if save_investments_to_file(inv_list):
                         st.session_state.investments = inv_list
                         st.session_state.cart.clear()
-                        st.success("Investment completed & saved!")
+                        st.success("Investment successful & saved to database!")
                     else:
                         st.error("Failed to save investment.")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # --- INVESTMENT HISTORY + GRAPH ---
+    # ---------------------------
+    # INVESTOR DASHBOARD — GRAPH
+    # ---------------------------
     st.subheader("📊 My Investment Dashboard")
 
     mine = [x for x in st.session_state.investments if x["investor"] == user["username"]]
 
     if not mine:
-        st.info("No investments yet.")
+        st.info("You have no investments yet.")
         return
 
     df = pd.DataFrame(mine)
@@ -1023,7 +1063,6 @@ def investor_page(user):
 
     st.metric("Total Invested", f"₹{df['amount'].sum():,.2f}")
 
-    # GRAPH
     fig, ax = plt.subplots()
     ax.plot(df["date"], df["amount"].cumsum(), marker="o", linewidth=2)
     ax.set_title("Cumulative Investment Growth")
@@ -1052,6 +1091,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
