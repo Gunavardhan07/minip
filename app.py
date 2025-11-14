@@ -719,19 +719,20 @@ def investor_page(user):
         """)
 
     # --- STEP PROGRESS TRACKER ---
-    st.markdown("""
-        <div style='background:rgba(255,255,255,0.04);padding:20px;border-radius:10px;margin-bottom:20px;'>
-            <h3 style='color:#06b6d4;'>📊 Investment Process Tracker</h3>
-            <p style='color:#bcd1e3;'>Follow these steps to complete your investment:</p>
+   st.markdown("""
+<div style='background:rgba(255,255,255,0.04);padding:20px;border-radius:10px;margin-bottom:20px;'>
+    <h3 style='color:#06b6d4;'>📊 Investment Process Tracker</h3>
+    <p style='color:#bcd1e3;'>Follow these steps to complete your investment:</p>
 
-            <ol style='color:#cbd6e0;font-size:1rem;line-height:1.6;'>
-                <li><b>Browse Startups</b> — Filter, search, and select verified startups.</li>
-                <li><b>Add to Cart</b> — Choose the amount and add the opportunity to your cart.</li>
-                <li><b>Checkout</b> — Pay using your wallet and confirm your investment.</li>
-                <li><b>Track Portfolio</b> — Monitor investment history and growth charts.</li>
-            </ol>
-        </div>
-    """, unsafe_allow_html=True)
+    <ol style='color:#cbd6e0;font-size:1rem;line-height:1.8;'>
+        <li><b>Browse Startups</b> — Filter, search, and select verified startups.</li>
+        <li><b>Add to Cart</b> — Choose the amount and add the opportunity to your cart.</li>
+        <li><b>Checkout</b> — Pay using your wallet and confirm your investment.</li>
+        <li><b>Track Portfolio</b> — Monitor investment history and growth charts.</li>
+    </ol>
+</div>
+""", unsafe_allow_html=True)
+
 
     # --- HEADER ---
     st.markdown("""
@@ -968,6 +969,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
