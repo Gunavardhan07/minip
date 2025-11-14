@@ -377,6 +377,73 @@ def landing_page():
 
 
 def startup_page(user):
+    # --- HELP / INSTRUCTIONS BOX ---
+    with st.expander("📘 HELP — How to Apply as a Startup (Read Before Submitting)"):
+        st.markdown("""
+        ### 🌱 **Startup Application Guide**
+        Follow these steps carefully to ensure your application is processed smoothly:
+
+        ---
+        ### **1️⃣ Enter Company Information**
+        Provide:
+        - Company Name  
+        - Official Website (optional)  
+        - Official Contact Email  
+        - Target Funding Amount  
+        - Minimum Investment Amount  
+
+        Make sure your contact details are accurate.
+
+        ---
+        ### **2️⃣ Upload All Required KYC Verification Documents**
+        Upload **minimum 7 documents**, including:
+        - Certificate of Incorporation / Registration  
+        - Company PAN Card  
+        - MOA / AOA  
+        - Board Resolution  
+        - Registered Office Address Proof  
+        - Director(s) ID & Address Proof  
+        - Latest GST / Tax Certificate  
+        
+        Documents can be **PDF / JPG / PNG**.
+
+        ---
+        ### **3️⃣ Upload Your Company Logo**
+        This will be shown to investors on the marketplace.
+
+        ---
+        ### **4️⃣ Upload Financial CSV (Optional but Strongly Recommended)**
+        Upload a CSV containing:
+        - date  
+        - revenue  
+        - expenses  
+        - profit  
+        - cashflow  
+        - users  
+        - churn  
+        
+        This data is used for **ROI forecasting** using the ARIMAX model.
+
+        ---
+        ### **5️⃣ Submit Your Application**
+        Click **Submit Application for Review**.
+
+        A Compliance Officer will:
+        - Verify each document  
+        - Approve / reject your startup  
+        - Request more information if required  
+
+        ---
+        ### **6️⃣ Track Your Application**
+        Scroll down to **My Applications** to:
+        - View application status  
+        - See document previews  
+        - View any compliance officer feedback  
+
+        ---
+        If you need help at any point, feel free to ask! 🚀
+        """)
+
     # --- HEADER ---
     st.markdown("""
         <div style='background:linear-gradient(90deg,#071A2A,#09344E);padding:40px 20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.45);text-align:center;'>
@@ -544,6 +611,7 @@ def startup_page(user):
             st.markdown("</div>", unsafe_allow_html=True)
 
 
+
 def checker_page(user):
     st.header("Compliance Review Dashboard")
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -607,6 +675,64 @@ def checker_page(user):
     st.markdown('</div>', unsafe_allow_html=True)
 
 def investor_page(user):
+    # --- HELP POPUP FOR INVESTORS ---
+    with st.expander("📘 HELP — How to Use the Investor Dashboard"):
+        st.markdown("""
+        ### 💼 **Investor Guide: How to Invest on SeedConnect**
+        Follow these steps to explore startups and make intelligent investments:
+
+        ---
+        ### **1️⃣ Browse & Search Startups**
+        - Use the search bar to find startups by name or website.  
+        - Filter by approval status (Approved / Pending / Rejected).  
+        - Sort startups by target funding amount.  
+
+        ---
+        ### **2️⃣ Click 'View Details'**
+        For each startup, you can see:
+        - Company info  
+        - Funding target & minimum investment  
+        - Uploaded KYC documents  
+        - ROI forecast graph (if financial data is uploaded)
+
+        ---
+        ### **3️⃣ Add an Investment to Your Cart**
+        - Enter an amount ≥ the Minimum Investment  
+        - Press **Add to Cart**  
+        - Only **Approved** startups can receive investments  
+
+        ---
+        ### **4️⃣ Checkout Securely**
+        - Review your items in the cart  
+        - Click **Proceed to Checkout**  
+        - Amount will be deducted from your wallet  
+        - Investments will be added to your portfolio  
+
+        ---
+        ### **5️⃣ Track Your Investment Growth**
+        - View total invested amount  
+        - See chronological investment history  
+        - Monitor cumulative growth graph  
+
+        ---
+        If you need help understanding ROI, ARIMA forecasts, or startup metrics — just ask! 🚀  
+        """)
+
+    # --- STEP PROGRESS TRACKER ---
+    st.markdown("""
+        <div style='background:rgba(255,255,255,0.04);padding:20px;border-radius:10px;margin-bottom:20px;'>
+            <h3 style='color:#06b6d4;'>📊 Investment Process Tracker</h3>
+            <p style='color:#bcd1e3;'>Follow these steps to complete your investment:</p>
+
+            <ol style='color:#cbd6e0;font-size:1rem;line-height:1.6;'>
+                <li><b>Browse Startups</b> — Filter, search, and select verified startups.</li>
+                <li><b>Add to Cart</b> — Choose the amount and add the opportunity to your cart.</li>
+                <li><b>Checkout</b> — Pay using your wallet and confirm your investment.</li>
+                <li><b>Track Portfolio</b> — Monitor investment history and growth charts.</li>
+            </ol>
+        </div>
+    """, unsafe_allow_html=True)
+
     # --- HEADER ---
     st.markdown("""
         <div style='background:linear-gradient(90deg,#071A2A,#09344E);padding:40px 20px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.45);text-align:center;'>
@@ -637,7 +763,7 @@ def investor_page(user):
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # --- FILTERING LOGIC (unchanged) ---
+    # --- FILTERING LOGIC ---
     results = st.session_state.pitches
     if q:
         results = [p for p in results if q.lower() in (p.get("name") or "").lower() or q.lower() in (p.get("website") or "").lower()]
@@ -691,7 +817,7 @@ def investor_page(user):
                         })
                         st.success(f"Added ₹{float(amount):,.2f} to cart for {p['name']}")
 
-            # --- VIEW DETAILS (unchanged functional logic) ---
+            # --- DETAILS ---
             if st.button(f"View Details-{p['id']}"):
                 with st.expander(f"📘 Details — {p['name']}"):
                     st.write("**Website:**", p.get("website") or "-")
@@ -815,7 +941,6 @@ def investor_page(user):
                 unsafe_allow_html=True
             )
 
-        # Chart
         fig, ax = plt.subplots()
         ax.plot(df["date"], df["amount"].cumsum(), marker="o", linewidth=2)
         ax.set_title("Cumulative Investment Growth")
@@ -843,6 +968,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
