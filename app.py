@@ -258,21 +258,7 @@ def landing_page():
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    st.subheader("Why Choose SeedConnect?")
-    st.write("""
-    - 💼 Verified Startup Listings  
-    - 📈 AI-Powered ROI Forecast  
-    - 🔐 Secure Wallet & Payments  
-    - 🌐 Document Upload + KYC  
-    - 🤝 Investor-Founder Collaboration  
-    """)
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-
-
-    # --- AUTH CARD (Login / Signup) ---
+   
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
         st.markdown('<div class="auth-card">', unsafe_allow_html=True)
@@ -1000,6 +986,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
