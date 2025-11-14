@@ -304,7 +304,7 @@ def logout():
 
 def landing_page():
    
-    bg_base64 = get_image_as_base64("images/landing_header.jpg")
+    bg_base64 = get_image_as_base64("images/landing_header.png")
 
     st.markdown(
         f"""
@@ -1167,6 +1167,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
