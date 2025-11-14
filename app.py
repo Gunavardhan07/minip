@@ -12,6 +12,12 @@ from urllib.parse import urlparse
 from datetime import datetime
 import base64
 import html
+import base64
+
+def get_image_as_base64(path):
+    with open(path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
 
 st.set_page_config(page_title="SeedConnect — KYC Edition", page_icon="🚀", layout="wide")
 sns.set_style("darkgrid")
@@ -974,6 +980,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
