@@ -849,7 +849,7 @@ def investor_page(user):
     # HEADER WITH BACKGROUND IMAGE
     # ---------------------------
     try:
-        bg_base64 = get_image_as_base64("images/investor_bg.jpg")
+        bg_base64 = get_image_as_base64("images/investor_bg.png")
     except Exception:
         bg_base64 = ""
 
@@ -1167,6 +1167,7 @@ if st.session_state.page == "home" or st.session_state.current_user is None:
     landing_page()
 else:
     main_app()
+
 
 
 
